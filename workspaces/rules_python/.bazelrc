@@ -1,0 +1,2 @@
+# Don't create __init__.py files implicitly (deprecated rules_python behaviour).
+common --incompatible_default_to_explicit_init_py

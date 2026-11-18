@@ -1,0 +1,14 @@
+load("@rules_python//python:py_test.bzl", "py_test")
+
+exports_files(["project/uv.lock"])
+
+py_test(
+    name = "app_a_test",
+    srcs = [
+        "project/apps/app-a/tests/test_app_a.py",
+        "project/tools/pytest_main.py",
+    ],
+    args = ["$(location project/apps/app-a/tests/test_app_a.py)"],
+    main = "project/tools/pytest_main.py",
+    deps = ["@pypi//pytest"],
+)

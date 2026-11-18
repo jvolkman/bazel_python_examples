@@ -1,0 +1,27 @@
+# Bazel-only view of ../../project/pyproject.toml, used with the SHARED
+# uv.lock (not relocked). Only [dependency-groups] is added:
+#  * rules_py only turns the root [dependency-groups] into selectable
+#    configurations; extras can't be selected, so each torch variant gets a
+#    group that activates the project's own extra.
+#  * rules_py doesn't understand [tool.uv] conflicts, so every lock edge gated
+#    on `extra == 'extra-9-torch-app-cu132'` evaluates to false and is dropped
+#    (aspect-build/rules_py#1510). The only such edge in this lock is
+#    torch(+cu132) -> cuda-toolkit[...]; it is restated here by hand, copied
+#    from the torch 2.15.0+cu132 entry in uv.lock. Re-check after every relock.
+# [project].name is changed for the same reason as in naive/pyproject.toml.
+[project]
+name = "torch-app-shared"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["numpy>=2"]
+
+[project.optional-dependencies]
+cpu = ["torch>=2.9"]
+cu132 = ["torch>=2.9"]
+
+[dependency-groups]
+shared-cpu = ["torch-app[cpu]"]
+shared-cu132 = [
+  "torch-app[cu132]",
+  "cuda-toolkit[cublas,cudart,cufft,cufile,cupti,cusolver,cusparse,nvjitlink,nvrtc,nvtx]",
+]

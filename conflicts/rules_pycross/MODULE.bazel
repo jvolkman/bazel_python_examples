@@ -1,0 +1,57 @@
+module(name = "conflicts_rules_pycross")
+
+bazel_dep(name = "rules_pycross", version = "2.1.0")
+bazel_dep(name = "rules_python", version = "2.5.1")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.12",
+)
+
+uv = use_extension("@rules_pycross//pycross/extensions:uv.bzl", "uv")
+
+# One workspace = one lock file. Every repo below is a view onto the same
+# backing package repo, so numpy is fetched once and shared.
+uv.workspace(
+    name = "torch",
+    lock_file = "//:project/uv.lock",
+)
+
+# Naive: one repo with both conflicting extras. uv's `conflicts` become
+# `_variants` bool flags on this repo, and the variant must be chosen on the
+# command line (`--@pypi//_variants:extra_cpu=True`).
+uv.repo(
+    name = "pypi",
+    dependency_groups = [
+        "default",
+        "optional:cpu",
+        "optional:cu132",
+    ],
+    workspace = "torch",
+)
+
+# Pinned: the same groups, but each repo pins one variant with a transition, so
+# targets that depend on @torch_cpu or @torch_cu132 build their variant without
+# any command-line flag, side by side in one `bazel test //...`.
+uv.repo(
+    name = "torch_cpu",
+    dependency_groups = [
+        "default",
+        "optional:cpu",
+        "optional:cu132",
+    ],
+    flags = ["--@torch_cpu//_variants:extra_cpu=True"],
+    workspace = "torch",
+)
+uv.repo(
+    name = "torch_cu132",
+    dependency_groups = [
+        "default",
+        "optional:cpu",
+        "optional:cu132",
+    ],
+    flags = ["--@torch_cu132//_variants:extra_cu132=True"],
+    workspace = "torch",
+)
+use_repo(uv, "pypi", "torch_cpu", "torch_cu132")

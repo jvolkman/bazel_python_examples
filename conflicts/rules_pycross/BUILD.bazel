@@ -1,0 +1,27 @@
+load("@rules_python//python:defs.bzl", "py_test")
+
+exports_files(["project/src/check_torch.py"])
+
+# Each test depends on a repo that pins its uv conflict variant (see
+# MODULE.bazel), so both run in one `bazel test //...` with no flags.
+py_test(
+    name = "torch_cpu_test",
+    srcs = ["project/src/check_torch.py"],
+    args = ["cpu"],
+    main = "project/src/check_torch.py",
+    deps = [
+        "@torch_cpu//numpy",
+        "@torch_cpu//torch",
+    ],
+)
+
+py_test(
+    name = "torch_cu132_test",
+    srcs = ["project/src/check_torch.py"],
+    args = ["cu132"],
+    main = "project/src/check_torch.py",
+    deps = [
+        "@torch_cu132//numpy",
+        "@torch_cu132//torch",
+    ],
+)

@@ -1,0 +1,14 @@
+# Bazel-only stand-in for the workspace root pyproject.toml, used with the
+# SHARED ../../project/uv.lock.
+#
+# rules_py builds its dependency groups from the [dependency-groups] table of
+# the pyproject.toml given to uv.project(). The real root file has
+# `dev = [ruff, mypy]`, which would make "dev" the hub's only group. This file
+# has no [dependency-groups], so rules_py falls back to one implicit group,
+# named after [project].name, containing every workspace member listed in
+# uv.lock's [manifest] (app-a, app-b, common, monorepo). Nothing to maintain
+# by hand when members are added.
+[project]
+name = "prod"
+version = "0.1.0"
+requires-python = ">=3.12"

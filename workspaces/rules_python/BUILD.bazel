@@ -1,0 +1,97 @@
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("@rules_python//python:py_library.bzl", "py_library")
+load("@rules_python//python:py_test.bzl", "py_test")
+
+# Inputs `uv export` reads (root + member pyproject.toml files and uv.lock).
+filegroup(
+    name = "project_files",
+    srcs = glob([
+        "project/uv.lock",
+        "project/**/pyproject.toml",
+    ]),
+    visibility = ["//requirements:__pkg__"],
+)
+
+# Which dependency set @monorepo_deps resolves to (see MODULE.bazel). Tests set it on
+# themselves through `config_settings`; everything else uses `prod`.
+string_flag(
+    name = "deps",
+    build_setting_default = "prod",
+    values = [
+        "prod",
+        "app_a_test",
+        "app_b_test",
+    ],
+)
+
+[
+    config_setting(
+        name = "deps_" + deps,
+        flag_values = {":deps": deps},
+    )
+    for deps in [
+        "prod",
+        "app_a_test",
+        "app_b_test",
+    ]
+]
+
+py_library(
+    name = "common",
+    srcs = glob(["project/libs/common/src/common/**/*.py"]),
+    imports = ["project/libs/common/src"],
+    visibility = ["//visibility:public"],
+    deps = ["@monorepo_deps//requests"],
+)
+
+py_library(
+    name = "app_a",
+    srcs = glob(["project/apps/app-a/src/app_a/**/*.py"]),
+    imports = ["project/apps/app-a/src"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":common",
+        "@monorepo_deps//pydantic",
+    ],
+)
+
+py_library(
+    name = "app_b",
+    srcs = glob(["project/apps/app-b/src/app_b/**/*.py"]),
+    imports = ["project/apps/app-b/src"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":common",
+        "@monorepo_deps//attrs",
+    ],
+)
+
+py_test(
+    name = "app_a_test",
+    srcs = [
+        "project/apps/app-a/tests/test_app_a.py",
+        "project/tools/pytest_main.py",
+    ],
+    args = ["$(rootpath project/apps/app-a/tests/test_app_a.py)"],
+    config_settings = {"//:deps": "app_a_test"},
+    main = "project/tools/pytest_main.py",
+    deps = [
+        ":app_a",
+        "@monorepo_deps//pytest",
+    ],
+)
+
+py_test(
+    name = "app_b_test",
+    srcs = [
+        "project/apps/app-b/tests/test_app_b.py",
+        "project/tools/pytest_main.py",
+    ],
+    args = ["$(rootpath project/apps/app-b/tests/test_app_b.py)"],
+    config_settings = {"//:deps": "app_b_test"},
+    main = "project/tools/pytest_main.py",
+    deps = [
+        ":app_b",
+        "@monorepo_deps//pytest",
+    ],
+)

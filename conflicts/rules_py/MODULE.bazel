@@ -1,0 +1,56 @@
+module(name = "conflicts_rules_py")
+
+bazel_dep(name = "rules_py", version = "2.0.0-alpha.11")
+
+# rules_py provisions its own interpreters (python-build-standalone).
+interpreters = use_extension("@rules_py//py:extensions.bzl", "python_interpreters")
+interpreters.toolchain(python_version = "3.12")
+use_repo(interpreters, "python_interpreters")
+
+register_toolchains("@python_interpreters//:all")
+
+uv = use_extension("@rules_py//uv:extensions.bzl", "uv")
+
+# Working setup: ONE hub, one uv.project per torch variant. Each variant has
+# its own pyproject.toml + uv.lock (variants/*), locked without [tool.uv]
+# conflicts. With no [dependency-groups], each project becomes one dependency
+# group named after [project].name ("torch-app-cpu", "torch-app-cu132").
+uv.declare_hub(hub_name = "pypi")
+uv.project(
+    hub_name = "pypi",
+    lock = "//variants/cpu:uv.lock",
+    pyproject = "//variants/cpu:pyproject.toml",
+)
+uv.project(
+    hub_name = "pypi",
+    lock = "//variants/cu132:uv.lock",
+    pyproject = "//variants/cu132:pyproject.toml",
+)
+
+# Alternative on the same hub: the SHARED uv.lock with a Bazel-only
+# pyproject.toml that adds dependency groups (see shared_lock/pyproject.toml).
+uv.project(
+    hub_name = "pypi",
+    lock = "//:project/uv.lock",
+    pyproject = "//shared_lock:pyproject.toml",
+)
+use_repo(uv, "pypi")
+
+# Naive approach: point one hub straight at the shared pyproject.toml/uv.lock.
+uv.declare_hub(hub_name = "pypi_naive")
+uv.project(
+    hub_name = "pypi_naive",
+    lock = "//:project/uv.lock",
+    pyproject = "//:project/pyproject.toml",
+)
+use_repo(uv, "pypi_naive")
+
+# Naive approach, step 2: same shared uv.lock, but a Bazel-only pyproject.toml
+# that maps each extra to a dependency group (see naive/pyproject.toml).
+uv.declare_hub(hub_name = "pypi_naive_groups")
+uv.project(
+    hub_name = "pypi_naive_groups",
+    lock = "//:project/uv.lock",
+    pyproject = "//naive:pyproject.toml",
+)
+use_repo(uv, "pypi_naive_groups")

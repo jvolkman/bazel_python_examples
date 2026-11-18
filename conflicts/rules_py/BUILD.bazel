@@ -1,0 +1,30 @@
+load("@rules_py//py:defs.bzl", "py_test")
+
+exports_files(glob(["project/**"]))
+
+# One hub (@pypi), one dependency group per torch variant. Each py_test pins
+# its group with `dep_group` (a configuration transition), so
+# `bazel test //...` runs both variants in one invocation.
+py_test(
+    name = "torch_cpu_test",
+    srcs = ["project/src/check_torch.py"],
+    args = ["cpu"],
+    dep_group = "torch-app-cpu",
+    main = "project/src/check_torch.py",
+    deps = [
+        "@pypi//numpy",
+        "@pypi//torch",
+    ],
+)
+
+py_test(
+    name = "torch_cu132_test",
+    srcs = ["project/src/check_torch.py"],
+    args = ["cu132"],
+    dep_group = "torch-app-cu132",
+    main = "project/src/check_torch.py",
+    deps = [
+        "@pypi//numpy",
+        "@pypi//torch",
+    ],
+)

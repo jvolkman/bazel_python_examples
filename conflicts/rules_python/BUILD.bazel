@@ -1,0 +1,28 @@
+load("@rules_python//python:py_test.bzl", "py_test")
+
+exports_files([
+    "project/pyproject.toml",
+    "project/uv.lock",
+])
+
+py_test(
+    name = "torch_cpu_test",
+    srcs = ["project/src/check_torch.py"],
+    args = ["cpu"],
+    main = "project/src/check_torch.py",
+    deps = [
+        "@pypi_cpu//numpy",
+        "@pypi_cpu//torch",
+    ],
+)
+
+py_test(
+    name = "torch_cu132_test",
+    srcs = ["project/src/check_torch.py"],
+    args = ["cu132"],
+    main = "project/src/check_torch.py",
+    deps = [
+        "@pypi_cu132//numpy",
+        "@pypi_cu132//torch",
+    ],
+)

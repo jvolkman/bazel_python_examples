@@ -1,0 +1,15 @@
+# Bazel-only test environments, used with the SHARED ../../project/uv.lock.
+#
+# rules_py ignores the [dependency-groups] of workspace members (app-a's and
+# app-b's `test` groups); only the pyproject.toml given to uv.project() is
+# read. Each test environment is therefore restated here: the member itself
+# plus its test requirements, copied from apps/app-*/pyproject.toml. The
+# specifiers pick pytest 7.4.4 and 9.2.0 out of the lock.
+[project]
+name = "tests"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[dependency-groups]
+app-a-test = ["app-a", "pytest>=7,<8"]
+app-b-test = ["app-b", "pytest>=8"]

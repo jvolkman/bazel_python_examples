@@ -1,0 +1,30 @@
+load("@rules_py//py:defs.bzl", "py_test")
+
+exports_files(["pyproject.toml"])
+
+# Alternative: keep the shared uv.lock, select the variant with dep_group and
+# put the hand-restored cuda-toolkit edge on the CUDA test's deps.
+py_test(
+    name = "torch_cpu_test",
+    srcs = ["//:project/src/check_torch.py"],
+    args = ["cpu"],
+    dep_group = "shared-cpu",
+    main = "//:project/src/check_torch.py",
+    deps = [
+        "@pypi//numpy",
+        "@pypi//torch",
+    ],
+)
+
+py_test(
+    name = "torch_cu132_test",
+    srcs = ["//:project/src/check_torch.py"],
+    args = ["cu132"],
+    dep_group = "shared-cu132",
+    main = "//:project/src/check_torch.py",
+    deps = [
+        "@pypi//cuda_toolkit",  # dropped from torch's deps by rules_py#1510
+        "@pypi//numpy",
+        "@pypi//torch",
+    ],
+)

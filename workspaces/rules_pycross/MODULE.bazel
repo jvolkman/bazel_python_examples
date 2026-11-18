@@ -1,0 +1,49 @@
+module(name = "workspaces_rules_pycross")
+
+bazel_dep(name = "rules_pycross", version = "2.1.0")
+bazel_dep(name = "rules_python", version = "2.5.1")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.12",
+)
+
+uv = use_extension("@rules_pycross//pycross/extensions:uv.bzl", "uv")
+
+# One workspace = one uv.lock. Members (libs/common, apps/app-a, apps/app-b)
+# are discovered from the lock's [manifest].
+uv.workspace(
+    name = "mono",
+    lock_file = "//:project/uv.lock",
+)
+
+# The hub: default (runtime) dependencies of every workspace member. There is no
+# member list to maintain, and the root `dev` group is simply not selected, so
+# [dependency-groups] stays in pyproject.toml untouched.
+uv.repo(
+    name = "pypi",
+    dependency_groups = ["default"],
+    projects = ["*"],
+    workspace = "mono",
+)
+
+# Test-only views onto the same workspace. Each adds one member's conflicting
+# test group and pins its uv conflict variant with a transition, so both tests
+# run in one `bazel test //...`. All three repos share one backing package
+# repo, so every package is downloaded and built once.
+uv.repo(
+    name = "pypi_test_a",
+    dependency_groups = ["group:test;testonly"],
+    flags = ["--@pypi_test_a//_variants:group_test=True"],
+    projects = ["app-a"],
+    workspace = "mono",
+)
+uv.repo(
+    name = "pypi_test_b",
+    dependency_groups = ["group:test;testonly"],
+    flags = ["--@pypi_test_b//_variants:group_test=True"],
+    projects = ["app-b"],
+    workspace = "mono",
+)
+use_repo(uv, "pypi", "pypi_test_a", "pypi_test_b")

@@ -1,0 +1,25 @@
+# Bazel/rules_py-only variant of ../../project/pyproject.toml: the same
+# project, but locked for ONE torch build only ("cu132"), so the lock file has no
+# [tool.uv] conflicts and no conflict-gated markers (aspect-build/rules_py#1510).
+[project]
+name = "torch-app-cu132"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["numpy>=2", "torch>=2.9"]
+
+[tool.uv]
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+package = false
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu132" }
+
+[[tool.uv.index]]
+name = "pytorch-cu132"
+url = "https://download.pytorch.org/whl/cu132"
+explicit = true
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+default = true

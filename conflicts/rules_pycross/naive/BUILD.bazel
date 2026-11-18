@@ -1,0 +1,18 @@
+load("@rules_python//python:defs.bzl", "py_test")
+
+# Naive approach: depend on the repo that contains both extras and pick the
+# variant on the command line. Without a flag these fail at analysis time, so
+# they are `manual` and excluded from `bazel test //...`:
+#
+#   bazel test //naive:torch_test --@pypi//_variants:extra_cpu=True --test_arg=cpu
+#   bazel test //naive:torch_test --@pypi//_variants:extra_cu132=True --test_arg=cu132
+py_test(
+    name = "torch_test",
+    srcs = ["//:project/src/check_torch.py"],
+    main = "//:project/src/check_torch.py",
+    tags = ["manual"],
+    deps = [
+        "@pypi//numpy",
+        "@pypi//torch",
+    ],
+)

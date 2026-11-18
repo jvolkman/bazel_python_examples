@@ -1,0 +1,2 @@
+# Used by //requirements:*.update and //requirements:*_test.
+exports_files(["export_requirements.py"])

@@ -1,0 +1,58 @@
+load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@rules_python//python:py_test.bzl", "py_test")
+
+exports_files(glob(["*.txt"]))
+
+# One requirements file per dependency set, all exported from the shared
+# uv.lock with `uv export --frozen`:
+#   prod:       every workspace member's runtime deps, without `dev` and
+#               without any `test` group. No hand-maintained member list.
+#   app_a_test: app-a's closure + app-a's `test` group (pytest 7).
+#   app_b_test: app-b's closure + app-b's `test` group (pytest 8+).
+# `--no-emit-workspace` drops the members themselves (`-e ./apps/app-a`);
+# Bazel builds them from source.
+#
+# `bazel run //requirements:<name>.update` re-exports a file,
+# `//requirements:<name>_test` checks that it is up to date.
+EXPORTS = {
+    "app_a_test": ["--package=app-a", "--group=test", "--no-dev"],
+    "app_b_test": ["--package=app-b", "--group=test", "--no-dev"],
+    "prod": ["--all-packages", "--no-dev"],
+}
+
+[
+    [
+        py_binary(
+            name = name + ".update",
+            srcs = ["//tools:export_requirements.py"],
+            args = [
+                "--uv=$(rootpath @rules_python//python/uv/bin:uv)",
+                "--project=project",
+                "--output=requirements/{}.txt".format(name),
+                "--",
+                "--no-emit-workspace",
+            ] + export_args,
+            data = ["@rules_python//python/uv/bin:uv"],
+            main = "//tools:export_requirements.py",
+        ),
+        py_test(
+            name = name + "_test",
+            srcs = ["//tools:export_requirements.py"],
+            args = [
+                "--uv=$(rootpath @rules_python//python/uv/bin:uv)",
+                "--project=project",
+                "--output=requirements/{}.txt".format(name),
+                "--check",
+                "--",
+                "--no-emit-workspace",
+            ] + export_args,
+            data = [
+                name + ".txt",
+                "//:project_files",
+                "@rules_python//python/uv/bin:uv",
+            ],
+            main = "//tools:export_requirements.py",
+        ),
+    ]
+    for name, export_args in EXPORTS.items()
+]

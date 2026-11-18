@@ -1,0 +1,32 @@
+# Workspace root. One lock file covers every member.
+[project]
+name = "monorepo"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = []
+
+# Development tools for humans and IDEs. Bazel builds and tests don't need
+# these (see the Slack thread in the top-level README).
+[dependency-groups]
+dev = ["ruff>=0.8", "mypy>=1.13"]
+
+[tool.uv]
+package = false
+# app-a's tests are still on pytest 7, app-b's on pytest 8. The two `test`
+# groups can't be installed together, so uv forks the resolution.
+conflicts = [
+  [
+    { package = "app-a", group = "test" },
+    { package = "app-b", group = "test" },
+  ],
+]
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+
+[tool.uv.workspace]
+members = ["libs/*", "apps/*"]
+
+# Lock against public PyPI so the lock file is portable.
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+default = true

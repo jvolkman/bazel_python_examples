@@ -1,0 +1,12 @@
+load("@rules_py//py:defs.bzl", "py_library")
+
+# The shared root pyproject.toml has `[dependency-groups] dev = [ruff, mypy]`,
+# so the naive hub has exactly one group, "dev", and none of the members'
+# dependencies. (The editable members are mapped by the same
+# uv.override_package() tags as the main hub, since they key on the lock.)
+py_library(
+    name = "app_a",
+    srcs = ["//:project/apps/app-a/src/app_a/__init__.py"],
+    tags = ["manual"],
+    deps = ["@pypi_naive//pydantic"],
+)

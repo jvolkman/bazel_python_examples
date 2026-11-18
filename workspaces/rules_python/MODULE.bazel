@@ -1,0 +1,74 @@
+module(name = "workspaces_rules_python")
+
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_python", version = "2.5.1")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.12",
+)
+
+# Let py_binary/py_test set //:deps on themselves via `config_settings`.
+config = use_extension("@rules_python//python/extensions:config.bzl", "config")
+config.add_transition_setting(setting = "//:deps")
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+
+# ONE hub (`@monorepo_deps`) for the whole workspace. rules_python can't hold two
+# versions of pytest for the same target platform, so we declare one custom
+# "platform" per dependency set. Each is Linux x86_64 plus a value of the
+# //:deps flag, and gets its own requirements file. Wheels shared between the
+# sets (requests, pydantic, ...) resolve to the same repository.
+[
+    pip.default(
+        arch_name = "x86_64",
+        config_settings = [
+            "@platforms//cpu:x86_64",
+            "@platforms//os:linux",
+            "//:deps_" + deps,
+        ],
+        os_name = "linux",
+        platform = "linux_x86_64_" + deps,
+        whl_abi_tags = [
+            "abi3",
+            "cp{major}{minor}",
+        ],
+        whl_platform_tags = [
+            "linux_x86_64",
+            "manylinux_*_x86_64",
+        ],
+    )
+    for deps in [
+        "prod",
+        "app_a_test",
+        "app_b_test",
+    ]
+]
+
+pip.parse(
+    hub_name = "monorepo_deps",
+    python_version = "3.12",
+    requirements_by_platform = {
+        "//requirements:prod.txt": "linux_x86_64_prod",
+        "//requirements:app_a_test.txt": "linux_x86_64_app_a_test",
+        "//requirements:app_b_test.txt": "linux_x86_64_app_b_test",
+    },
+    # Without this only the host platform (linux_x86_64) is evaluated and
+    # every file above is ignored.
+    target_platforms = [
+        "linux_x86_64_prod",
+        "linux_x86_64_app_a_test",
+        "linux_x86_64_app_b_test",
+    ],
+)
+use_repo(pip, "monorepo_deps")
+
+# uv for `bazel run //requirements:<name>.update` (uv export).
+uv = use_extension(
+    "@rules_python//python/uv:uv.bzl",
+    "uv",
+    dev_dependency = True,
+)
+uv.configure(version = "0.13.5")

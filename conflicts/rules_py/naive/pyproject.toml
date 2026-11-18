@@ -1,0 +1,26 @@
+# Bazel-only view of ../../project/pyproject.toml (used with the SHARED uv.lock,
+# not relocked). Identical except for the [dependency-groups] table: rules_py
+# only creates selectable configurations from the root [dependency-groups],
+# and extras are not selectable on their own, so each torch variant gets a
+# group that activates the corresponding extra of the project itself.
+# [project].name differs from the shared file ("torch-app") only because
+# rules_py names the generated project repository after it, globally: two
+# uv.project()s with the same name, even on different hubs, overwrite each
+# other (see README).
+[project]
+name = "torch-app-groups"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = ["numpy>=2"]
+
+[project.optional-dependencies]
+cpu = ["torch>=2.9"]
+cu132 = ["torch>=2.9"]
+
+[dependency-groups]
+cpu = ["torch-app[cpu]"]
+cu132 = ["torch-app[cu132]"]
+
+[tool.uv]
+conflicts = [[{ extra = "cpu" }, { extra = "cu132" }]]
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]

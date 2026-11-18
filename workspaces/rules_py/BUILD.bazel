@@ -1,0 +1,57 @@
+load("@rules_py//py:defs.bzl", "py_library", "py_pytest_test")
+
+exports_files(glob(["project/**"]))
+
+# First-party code, built by Bazel from the members' src/ dirs. These are also
+# the uv.override_package() targets for the editable members in uv.lock.
+py_library(
+    name = "common",
+    srcs = glob(["project/libs/common/src/common/**/*.py"]),
+    imports = ["project/libs/common/src"],
+    visibility = ["//visibility:public"],
+    deps = ["@pypi//requests"],
+)
+
+py_library(
+    name = "app_a",
+    srcs = glob(["project/apps/app-a/src/app_a/**/*.py"]),
+    imports = ["project/apps/app-a/src"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":common",
+        "@pypi//pydantic",
+    ],
+)
+
+py_library(
+    name = "app_b",
+    srcs = glob(["project/apps/app-b/src/app_b/**/*.py"]),
+    imports = ["project/apps/app-b/src"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":common",
+        "@pypi//attrs",
+    ],
+)
+
+# Each test pins its dependency group (a configuration transition), so both
+# pytest versions are used in one `bazel test //...`.
+py_pytest_test(
+    name = "app_a_test",
+    srcs = ["project/apps/app-a/tests/test_app_a.py"],
+    dep_group = "app-a-test",
+    deps = [
+        ":app_a",
+        "@pypi//pytest",
+    ],
+)
+
+py_pytest_test(
+    name = "app_b_test",
+    srcs = ["project/apps/app-b/tests/test_app_b.py"],
+    dep_group = "app-b-test",
+    deps = [
+        ":app_b",
+        "@pypi//pytest",
+    ],
+)

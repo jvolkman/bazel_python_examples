@@ -1,0 +1,38 @@
+load("@rules_py//py:defs.bzl", "py_test")
+
+# The shared pyproject.toml has no [dependency-groups], so rules_py creates
+# one implicit group named after the project ("torch-app"). Extras are not
+# selectable; we just ask for torch and see which build we get.
+[
+    py_test(
+        name = "torch_{}_test".format(variant),
+        srcs = ["//:project/src/check_torch.py"],
+        args = [variant],
+        dep_group = "torch-app",
+        main = "//:project/src/check_torch.py",
+        tags = ["manual"],
+        deps = [
+            "@pypi_naive//numpy",
+            "@pypi_naive//torch",
+        ],
+    )
+    for variant in ["cpu", "cu132"]
+]
+
+exports_files(["pyproject.toml"])
+
+[
+    py_test(
+        name = "groups_torch_{}_test".format(variant),
+        srcs = ["//:project/src/check_torch.py"],
+        args = [variant],
+        dep_group = variant,
+        main = "//:project/src/check_torch.py",
+        tags = ["manual"],
+        deps = [
+            "@pypi_naive_groups//numpy",
+            "@pypi_naive_groups//torch",
+        ],
+    )
+    for variant in ["cpu", "cu132"]
+]

@@ -1,0 +1,65 @@
+load("@pypi//:requirements.bzl", "requirement")
+load("@rules_python//python:defs.bzl", "py_library", "py_test")
+
+package(default_visibility = ["//visibility:public"])
+
+# First-party code, built from the members' src/ dirs. Third-party deps come
+# from the single @pypi hub.
+
+py_library(
+    name = "common",
+    srcs = glob(["project/libs/common/src/common/**/*.py"]),
+    imports = ["project/libs/common/src"],
+    deps = [requirement("requests")],
+)
+
+py_library(
+    name = "app_a",
+    srcs = glob(["project/apps/app-a/src/app_a/**/*.py"]),
+    imports = ["project/apps/app-a/src"],
+    deps = [
+        ":common",
+        requirement("pydantic"),
+    ],
+)
+
+py_library(
+    name = "app_b",
+    srcs = glob(["project/apps/app-b/src/app_b/**/*.py"]),
+    imports = ["project/apps/app-b/src"],
+    deps = [
+        ":common",
+        requirement("attrs"),
+    ],
+)
+
+# pytest comes from the per-app test repos, each pinned to its uv conflict
+# variant (pytest 7 for app-a, pytest 9 for app-b).
+
+py_test(
+    name = "app_a_test",
+    srcs = [
+        "project/apps/app-a/tests/test_app_a.py",
+        "project/tools/pytest_main.py",
+    ],
+    args = ["$(rootpath project/apps/app-a/tests/test_app_a.py)"],
+    main = "project/tools/pytest_main.py",
+    deps = [
+        ":app_a",
+        "@pypi_test_a//pytest",
+    ],
+)
+
+py_test(
+    name = "app_b_test",
+    srcs = [
+        "project/apps/app-b/tests/test_app_b.py",
+        "project/tools/pytest_main.py",
+    ],
+    args = ["$(rootpath project/apps/app-b/tests/test_app_b.py)"],
+    main = "project/tools/pytest_main.py",
+    deps = [
+        ":app_b",
+        "@pypi_test_b//pytest",
+    ],
+)
