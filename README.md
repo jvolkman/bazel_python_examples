@@ -5,7 +5,7 @@ Side-by-side examples of how three Bazel Python rulesets handle the same uv lock
 | Ruleset | Version | Python rules used |
 | --- | --- | --- |
 | [rules_python](https://github.com/bazel-contrib/rules_python) | 2.5.1 | its own `py_library` / `py_test` |
-| [rules_pycross](https://github.com/jvolkman/rules_pycross) | 2.1.0 | rules_python's `py_library` / `py_test` |
+| [rules_pycross](https://github.com/jvolkman/rules_pycross) | `main` (`bd4800c5`) | rules_python's `py_library` / `py_test` |
 | [rules_py](https://github.com/aspect-build/rules_py) | 2.0.0-alpha.11 (BCR module `rules_py`) | its own `py_library` / `py_test` / `py_pytest_test` |
 
 All modules use Bazel 9.3.2 and Python 3.12. The locks are restricted to Linux x86_64.
@@ -49,7 +49,7 @@ The CUDA test runs fine without a GPU; it checks `torch.version.cuda`.
 | --- | --- | --- | --- |
 | Reads `[tool.uv] conflicts` | No | **Yes** | No ([#1510](https://github.com/aspect-build/rules_py/issues/1510)) |
 | Naive (point at the shared uv.lock) | **Loud** failure at extension time: `attempting to override an existing repo ... torch ...` | **Loud** failure at analysis: `No uv conflict variant selected. Set one of the _variants flags ...`. Passing the flag works. | Torch isn't in the hub (extras are never activated). Mapping the extras to groups builds, but cu132 is **silently wrong**: torch's conflict-gated `cuda-toolkit[...]` edge is dropped, so `import torch` fails with `libcudart.so.13: cannot open shared object file` |
-| Working setup | `uv export --extra <v>` → one requirements file and one `pip.parse` hub per variant (`@pypi_cpu`, `@pypi_cu132`) | Shared uv.lock unchanged. Two `uv.repo` views over one workspace, each pinned with `flags = ["--@<repo>//_variants:extra_<v>=True"]` | A separate pyproject + uv.lock per variant (no extras, no conflicts), each a `uv.project` on one hub, picked by `py_test(dep_group = ...)` |
+| Working setup | `uv export --extra <v>` → one requirements file and one `pip.parse` hub per variant (`@pypi_cpu`, `@pypi_cu132`) | Shared uv.lock unchanged. Two `uv.repo` views over one workspace, each requesting its extra (`dependency_groups = ["default", "optional:<v>"]`); the variant is selected automatically with no `flags` | A separate pyproject + uv.lock per variant (no extras, no conflicts), each a `uv.project` on one hub, picked by `py_test(dep_group = ...)` |
 | Variant chosen by | Hub name | Repo name (repo transition), or a global flag | `dep_group` on the terminal target (transition) or a global flag |
 | Uses the shared uv.lock as-is | No (exported requirements files) | **Yes** | No (per-variant locks). A shared-lock variant works only if you restate the cuda-toolkit edge by hand |
 | Hand work | Export script and up-to-date tests. `experimental_index_url_overrides` for the torch indexes. A helper that adds back extras `uv export` strips (`cuda-toolkit[cudart,...]`) | None | Copy and relock each variant |
@@ -74,7 +74,7 @@ nor to keep a member list by hand.
 | Where hub contents are chosen | Requirements files you export (`uv export --all-packages --no-dev`, `--package app-a --group test`, ...) | `MODULE.bazel`: `uv.repo(projects = ["*"], dependency_groups = ["default"])` | The root pyproject's `[dependency-groups]`. Without any, it uses one implicit group of all `[manifest].members` |
 | All members, no `dev`, no hand-kept list | Yes, via `--all-packages --no-dev` | **Yes, native**: `dev` is just not selected, and the root pyproject is untouched | Only by giving rules_py a Bazel-only stub pyproject with no `[dependency-groups]`, so the real root pyproject is never read |
 | Naive (shared lock + root pyproject) | **Loud** failure: `attempting to override an existing repo ... pytest ...` (it follows every dev-dependency edge, so `dev` would also land in the hub) | **Works** in 2.1.0 (2.0.1 had a bug, see below) | **Loud** failure: `Editable package app_a ... doesn't have a mandatory uv.override_package(target = ...)`. With overrides added, the only group is `dev`, so pydantic is missing |
-| pytest 7 / 8 split | One hub. Each exported file is bound to a custom `pip.default` platform keyed on a `//:deps` string flag, and each `py_test` sets it with `config_settings` | Per-member test repos (`projects = ["app-a"]`, `group:test;testonly`), pinned with `flags` | Member groups are ignored, so they are restated as root groups (`app-a-test = ["app-a", "pytest>=7,<8"]`) and picked with `py_pytest_test(dep_group = ...)` |
+| pytest 7 / 8 split | One hub. Each exported file is bound to a custom `pip.default` platform keyed on a `//:deps` string flag, and each `py_test` sets it with `config_settings` | Per-member test repos (`projects = ["app-a"]`, `group:test;testonly`); each selects its variant automatically with no `flags` | Member groups are ignored, so they are restated as root groups (`app-a-test = ["app-a", "pytest>=7,<8"]`) and picked with `py_pytest_test(dep_group = ...)` |
 | Workspace members | Silently dropped (`-e` lines are ignored; uses `--no-emit-workspace`) | Treated as projects: no targets, no error, member→member deps flattened | Each editable member needs `uv.override_package(target = ...)` |
 | Uses the shared uv.lock as-is | No (exported files) | **Yes** (2.1.0) | Yes, plus two stub pyprojects |
 

@@ -1,9 +1,10 @@
-# Workspaces: rules_pycross 2.1.0
+# Workspaces: rules_pycross (`main`)
 
 The uv workspace in [`project/`](../project) (root `monorepo` with a `dev` group, members
 `libs/common`, `apps/app-a`, `apps/app-b`, and conflicting per-member `test` groups that need
-pytest 7 and pytest 8+), with [rules_pycross](https://github.com/jvolkman/rules_pycross) 2.1.0 and
-rules_python 2.5.1 (toolchain and `py_library`/`py_test`), Bazel 9.3.2, Python 3.12.
+pytest 7 and pytest 8+), with [rules_pycross](https://github.com/jvolkman/rules_pycross) pinned to
+`main` (`bd4800c5`) and rules_python 2.5.1 (toolchain and `py_library`/`py_test`), Bazel 9.3.2,
+Python 3.12.
 
 > [!NOTE]
 > rules_pycross 2.0.1 couldn't use this lock as-is. Both `test` groups mapped to the same variant
@@ -22,7 +23,12 @@ is just never selected.
 [`MODULE.bazel`](MODULE.bazel) (trimmed):
 
 ```starlark
-bazel_dep(name = "rules_pycross", version = "2.1.0")
+bazel_dep(name = "rules_pycross")
+git_override(
+    module_name = "rules_pycross",
+    commit = "bd4800c5abacdfcc2a9053872f82e1bdd19ce22c",
+    remote = "https://github.com/jvolkman/rules_pycross.git",
+)
 bazel_dep(name = "rules_python", version = "2.5.1")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
@@ -39,18 +45,17 @@ uv.repo(
     workspace = "mono",
 )
 
-# Test-only views: one per member's conflicting test group, each pinned to its variant.
+# Test-only views: each requests one member's conflicting `test` group, so the
+# variant is selected automatically with no `flags` needed.
 uv.repo(
     name = "pypi_test_a",
     dependency_groups = ["group:test;testonly"],
-    flags = ["--@pypi_test_a//_variants:group_test=True"],
     projects = ["app-a"],
     workspace = "mono",
 )
 uv.repo(
     name = "pypi_test_b",
     dependency_groups = ["group:test;testonly"],
-    flags = ["--@pypi_test_b//_variants:group_test=True"],
     projects = ["app-b"],
     workspace = "mono",
 )
@@ -90,12 +95,12 @@ rules_pycross has no pytest rule of its own, so the tests are plain `py_test` ta
 `project/tools/pytest_main.py`. Everything comes from the shared `project/` (via the `project`
 symlink), with no BUILD files added there.
 
-Each variant flag belongs to its repo. In `pypi_test_a` (`projects = ["app-a"]`), `group_test`
-means app-a's `test` group, so the same flag name selects pytest 7 there and pytest 8+ in
-`pypi_test_b`.
+Each test repo requests only one member's `test` group (`projects = ["app-a"]` or `["app-b"]`),
+so rules_pycross selects that variant automatically — no `flags` attribute is needed.
 
-All three repos are views onto one backing package repo (`@mono__pkgs`). `requests`, `pydantic`
-and the rest are fetched and installed once, and app-a and app-b see the same versions.
+All three repos are views onto one backing package repo (`@mono__pkgs`). Variant-independent
+packages (`requests`, `pydantic`, `attrs`, and pytest's shared dependencies) are fetched and
+installed once across all three repo configurations, and app-a and app-b see the same versions.
 
 Run: `bazel test //...`
 
@@ -126,11 +131,11 @@ per-member repo `uv.repo(projects = ["app-a"])` contains `pydantic` and `request
 - `projects = ["*"]` with `["default"]` is enough for the production hub.
 - For the conflicting test groups, you need one repo per variant. A flag pins a variant for one
   repo, and two repos are the only way to get both pytest versions in one build.
-- Per-member test repos (`projects = ["app-a"]`) are the simplest choice, because `group_test`
-  then names that member's group. A repo with `projects = ["*"]` and `group:test` also works if
-  it pins `group_app-a_test` or `group_app-b_test`. Pinning `group_test` there would select both
-  conflicting groups, and the extension rejects it ("select conflicting variants
-  group_app-a_test and group_app-b_test").
+- Per-member test repos (`projects = ["app-a"]`) are the simplest choice, because each requests
+  only one item of the conflict set and needs no `flags`. A repo with `projects = ["*"]` and
+  `group:test` also works if it pins `group_app-a_test` or `group_app-b_test`. Pinning `group_test`
+  there would select both conflicting groups, and the extension rejects it ("select conflicting
+  variants group_app-a_test and group_app-b_test").
 - `group:*` doesn't help. It would select both conflicting test groups *and* the root `dev`
   group.
 
@@ -165,9 +170,9 @@ The workaround on 2.0.1 was a relocked copy of the project with the groups renam
 - **The Slack requirement is met natively.** One lock, one hub, no member list,
   `[dependency-groups]` left in place, and no pyproject rewriting. Group selection is
   a MODULE.bazel concern (`dependency_groups`), separate from what pyproject declares.
-- **Conflicting groups need one repo per variant**, each pinned with `uv.repo(flags = ...)`.
-  Targets pick the variant by repo name (`@pypi_test_a//pytest` vs. `@pypi_test_b//pytest`). There
-  is no single `@pypi//pytest` that follows the test target.
+- **Conflicting groups need one repo per variant.** Targets pick the variant by repo name
+  (`@pypi_test_a//pytest` vs. `@pypi_test_b//pytest`). There is no single `@pypi//pytest` that
+  follows the test target.
 - **Variant flags are per repo.** The same flag name can mean different groups in different
   repos, which is convenient here but worth knowing when reading `.bazelrc` flags.
 - **The auto-generated `mono__build` repo** contains all groups of all projects plus transitives

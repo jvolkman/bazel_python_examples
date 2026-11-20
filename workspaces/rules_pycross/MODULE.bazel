@@ -1,6 +1,11 @@
 module(name = "workspaces_rules_pycross")
 
-bazel_dep(name = "rules_pycross", version = "2.1.0")
+bazel_dep(name = "rules_pycross")
+git_override(
+    module_name = "rules_pycross",
+    commit = "bd4800c5abacdfcc2a9053872f82e1bdd19ce22c",
+    remote = "https://github.com/jvolkman/rules_pycross.git",
+)
 bazel_dep(name = "rules_python", version = "2.5.1")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
@@ -28,21 +33,19 @@ uv.repo(
     workspace = "mono",
 )
 
-# Test-only views onto the same workspace. Each adds one member's conflicting
-# test group and pins its uv conflict variant with a transition, so both tests
-# run in one `bazel test //...`. All three repos share one backing package
-# repo, so every package is downloaded and built once.
+# Test-only views onto the same workspace. Each requests one member's
+# conflicting `test` group, so rules_pycross selects its variant automatically
+# with no `flags` needed. All three repos share one backing package repo, so
+# variant-independent packages are fetched and installed once.
 uv.repo(
     name = "pypi_test_a",
     dependency_groups = ["group:test;testonly"],
-    flags = ["--@pypi_test_a//_variants:group_test=True"],
     projects = ["app-a"],
     workspace = "mono",
 )
 uv.repo(
     name = "pypi_test_b",
     dependency_groups = ["group:test;testonly"],
-    flags = ["--@pypi_test_b//_variants:group_test=True"],
     projects = ["app-b"],
     workspace = "mono",
 )

@@ -1,6 +1,11 @@
 module(name = "conflicts_rules_pycross")
 
-bazel_dep(name = "rules_pycross", version = "2.1.0")
+bazel_dep(name = "rules_pycross")
+git_override(
+    module_name = "rules_pycross",
+    commit = "bd4800c5abacdfcc2a9053872f82e1bdd19ce22c",
+    remote = "https://github.com/jvolkman/rules_pycross.git",
+)
 bazel_dep(name = "rules_python", version = "2.5.1")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
@@ -31,27 +36,24 @@ uv.repo(
     workspace = "torch",
 )
 
-# Pinned: the same groups, but each repo pins one variant with a transition, so
-# targets that depend on @torch_cpu or @torch_cu132 build their variant without
-# any command-line flag, side by side in one `bazel test //...`.
+# Per-variant views: each requests only one extra from the conflict set, so
+# rules_pycross selects that variant automatically with no `flags` needed.
+# Targets that depend on @torch_cpu or @torch_cu132 build side by side in one
+# `bazel test //...`.
 uv.repo(
     name = "torch_cpu",
     dependency_groups = [
         "default",
         "optional:cpu",
-        "optional:cu132",
     ],
-    flags = ["--@torch_cpu//_variants:extra_cpu=True"],
     workspace = "torch",
 )
 uv.repo(
     name = "torch_cu132",
     dependency_groups = [
         "default",
-        "optional:cpu",
         "optional:cu132",
     ],
-    flags = ["--@torch_cu132//_variants:extra_cu132=True"],
     workspace = "torch",
 )
 use_repo(uv, "pypi", "torch_cpu", "torch_cu132")

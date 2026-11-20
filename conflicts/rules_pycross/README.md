@@ -1,24 +1,30 @@
-# Conflicts: rules_pycross 2.1.0
+# Conflicts: rules_pycross (`main`)
 
 uv `conflicts` between the `cpu` and `cu132` extras of the shared
 [`project/`](../project) (one `uv.lock`, two torch builds), with
-[rules_pycross](https://github.com/jvolkman/rules_pycross) 2.1.0 and rules_python 2.5.1
-(toolchain only), Bazel 9.3.2, Python 3.12.
+[rules_pycross](https://github.com/jvolkman/rules_pycross) pinned to `main` (`bd4800c5`) and
+rules_python 2.5.1 (toolchain only), Bazel 9.3.2, Python 3.12.
 
 ## Setup
 
 rules_pycross reads the uv lock's `conflicts` table itself. Each conflicting item becomes a
 `bool_flag` in the generated repo (`@<repo>//_variants:extra_cpu`, `...:extra_cu132`), and the
-lock's conflict markers (`extra == 'extra-9-torch-app-cpu'`) select on those flags. A
-`uv.repo(flags = [...])` tag pins a flag for everything reached through that repo with a
-transition. So two repos over the same workspace give one CPU view and one CUDA view, and both
-can be built in one invocation. All repos share one backing package repo
-(`@<workspace>__pkgs`), so numpy is fetched once.
+lock's conflict markers (`extra == 'extra-9-torch-app-cpu'`) select on those flags. When a
+`uv.repo` requests only one item from a conflict set (`optional:cpu` or `optional:cu132`),
+rules_pycross selects it automatically with a repo transition — no `flags` attribute is needed.
+Two repos over the same workspace therefore give one CPU view and one CUDA view, and both build
+in one invocation. All repos share one backing package repo (`@<workspace>__pkgs`), so
+variant-independent packages like numpy are fetched and installed once.
 
 [`MODULE.bazel`](MODULE.bazel) (trimmed):
 
 ```starlark
-bazel_dep(name = "rules_pycross", version = "2.1.0")
+bazel_dep(name = "rules_pycross")
+git_override(
+    module_name = "rules_pycross",
+    commit = "bd4800c5abacdfcc2a9053872f82e1bdd19ce22c",
+    remote = "https://github.com/jvolkman/rules_pycross.git",
+)
 bazel_dep(name = "rules_python", version = "2.5.1")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
@@ -27,17 +33,15 @@ python.toolchain(is_default = True, python_version = "3.12")
 uv = use_extension("@rules_pycross//pycross/extensions:uv.bzl", "uv")
 uv.workspace(name = "torch", lock_file = "//:project/uv.lock")
 
-# Pinned views: one per variant.
+# Per-variant views: each requests one extra, so the variant is selected automatically.
 uv.repo(
     name = "torch_cpu",
-    dependency_groups = ["default", "optional:cpu", "optional:cu132"],
-    flags = ["--@torch_cpu//_variants:extra_cpu=True"],
+    dependency_groups = ["default", "optional:cpu"],
     workspace = "torch",
 )
 uv.repo(
     name = "torch_cu132",
-    dependency_groups = ["default", "optional:cpu", "optional:cu132"],
-    flags = ["--@torch_cu132//_variants:extra_cu132=True"],
+    dependency_groups = ["default", "optional:cu132"],
     workspace = "torch",
 )
 use_repo(uv, "torch_cpu", "torch_cu132")
@@ -112,7 +116,7 @@ without touching the lock or pyproject.toml.
 
 ## Friction / limitations
 
-- **One repo per variant.** Pinning works per repo (`uv.repo(flags = ...)`), not per target. A
+- **One repo per variant.** Selection works per repo, not per target. A
   binary that needs both variants (e.g. a CPU tool and a CUDA trainer) depends on two different
   repo names (`@torch_cpu//torch`, `@torch_cu132//torch`). There is no single `@pypi//torch` whose
   variant follows the consuming target. You can still use the global flag with a single repo, but
