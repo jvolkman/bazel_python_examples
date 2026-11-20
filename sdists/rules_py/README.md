@@ -1,0 +1,98 @@
+# Building C-extension sdists with rules_py 2.0.0-alpha.11
+
+This module builds the two sdist-only C extensions in [`project/`](../project) (`crcmod==1.7` and
+`datrie==0.8.3`) using rules_py 2.0.0-alpha.11 on Bazel 9.3.2 and Python 3.12. See
+[`sdists/README.md`](../README.md) for the scenario overview.
+
+## Setup
+
+rules_py compiles sdists hermetically in sandboxed Bazel build actions (`pep517_native_whl`,
+auto-detected by its `detect_native.py` configure tool) using Bazel's CC toolchain. However, it
+has no separate `build_tools_repo` mechanism: every build dependency, including the PyPA `build`
+frontend itself (`default_build_dependencies = ["build"]`) plus `setuptools`, `wheel`, and `cython`,
+must be locked inside the same `uv.lock` and exposed in the same `dep_group` as the runtime
+packages.
+
+To make `bazel test //...` pass, [`bazel_project/pyproject.toml`](bazel_project/pyproject.toml)
+copies `project/pyproject.toml`, adds `build`, `setuptools`, `wheel`, and `cython` to
+`[project].dependencies`, and relocks [`bazel_project/uv.lock`](bazel_project/uv.lock).
+
+[`MODULE.bazel`](MODULE.bazel):
+
+```starlark
+bazel_dep(name = "rules_py", version = "2.0.0-alpha.11")
+
+interpreters = use_extension("@rules_py//py:extensions.bzl", "python_interpreters")
+interpreters.toolchain(python_version = "3.12")
+use_repo(interpreters, "python_interpreters")
+
+register_toolchains("@python_interpreters//:all")
+
+uv = use_extension("@rules_py//uv:extensions.bzl", "uv")
+uv.declare_hub(hub_name = "pypi")
+uv.project(
+    hub_name = "pypi",
+    lock = "//bazel_project:uv.lock",
+    pyproject = "//bazel_project:pyproject.toml",
+)
+use_repo(uv, "pypi")
+```
+
+[`.bazelrc`](.bazelrc) selects Python 3.12 (`common --@rules_py//py:python_version=3.12`), and
+[`BUILD.bazel`](BUILD.bazel) sets `dep_group = "sdist-app"` on `py_test`:
+
+```starlark
+py_test(
+    name = "sdist_test",
+    srcs = ["project/src/check_sdists.py"],
+    dep_group = "sdist-app",
+    main = "project/src/check_sdists.py",
+    deps = [
+        "@pypi//crcmod",
+        "@pypi//datrie",
+    ],
+)
+```
+
+Run: `bazel test //...`
+
+## Result
+
+| Command | Target | Status | Observed |
+| --- | --- | --- | --- |
+| `bazel test //...` | `//:sdist_test` | pass | Both `crcmod._crcfunext` and `datrie` compiled hermetically as `.so` extensions via `pep517_native_whl` |
+
+## What happened with the naive approaches
+
+1. **Shared `project/pyproject.toml` + `project/uv.lock`**: fails during module extension
+   evaluation because `build` is not in the lock:
+
+```text
+Error in fail: Unable to resolve a default version for requirement "build" in @@//:project/uv.lock
+```
+
+2. **Putting `build`, `setuptools`, `wheel`, and `cython` in a separate `[dependency-groups] build-tools` group**:
+   - Without an `app` group in `[dependency-groups]`, rules_py drops `[project].dependencies`, so
+     `@pypi//crcmod` disappears from the hub.
+   - With both `app` and `build-tools` groups in `[dependency-groups]`, `py_test(dep_group = "app")`
+     fails at analysis time because the generated `//:build` alias only matches `build-tools`:
+
+```text
+ERROR: .../@rules_py++uv+project__sdist_app/BUILD.bazel:39:6: configurable attribute "actual" in
+  @@rules_py++uv+project__sdist_app//:build doesn't match this configuration.
+Conditions checked:
+ @@rules_py++uv+project__sdist_app//private/dep_group:build-tools
+```
+
+## Friction / limitations
+
+- **Cannot use `project/uv.lock` unmodified.** rules_py has no separate build-tools lock/repo; you
+  must lock `build`, `setuptools`, `wheel`, and `cython` in the same lockfile.
+- **Build tools must share the runtime `dep_group`.** Putting build tools in their own
+  `[dependency-groups]` group makes `//:build` unreachable when building under the app's
+  `dep_group`, forcing build tools into `[project].dependencies` (or into every `dep_group` that
+  consumes an sdist).
+- **Sdist compilation itself works well once dependencies are locked.** `detect_native.py`
+  automatically detected native sources in both `crcmod` and `datrie` (including `datrie`'s
+  `build_clib` static library and Cython dependency) and compiled both hermetically with Bazel's
+  CC toolchain.

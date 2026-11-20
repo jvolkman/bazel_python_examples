@@ -1,0 +1,15 @@
+load("@rules_python//python:defs.bzl", "py_test")
+
+# Naive approach: use the shared uv.lock without providing setuptools/wheel/cython
+# via build_tools_repo. Fails when analyzing the sdist build targets because
+# those PEP 517 build tools are not in project/uv.lock.
+py_test(
+    name = "sdist_test",
+    srcs = ["//:project/src/check_sdists.py"],
+    main = "//:project/src/check_sdists.py",
+    tags = ["manual"],
+    deps = [
+        "@pypi_naive//crcmod",
+        "@pypi_naive//datrie",
+    ],
+)

@@ -1,4 +1,3 @@
-load("@pypi//:requirements.bzl", "requirement")
 load("@rules_python//python:defs.bzl", "py_library", "py_test")
 
 package(default_visibility = ["//visibility:public"])
@@ -10,7 +9,7 @@ py_library(
     name = "common",
     srcs = glob(["project/libs/common/src/common/**/*.py"]),
     imports = ["project/libs/common/src"],
-    deps = [requirement("requests")],
+    deps = ["@pypi//requests"],
 )
 
 py_library(
@@ -19,7 +18,7 @@ py_library(
     imports = ["project/apps/app-a/src"],
     deps = [
         ":common",
-        requirement("pydantic"),
+        "@pypi//pydantic",
     ],
 )
 
@@ -29,13 +28,12 @@ py_library(
     imports = ["project/apps/app-b/src"],
     deps = [
         ":common",
-        requirement("attrs"),
+        "@pypi//attrs",
     ],
 )
 
-# pytest comes from the same `@pypi` hub (marked testonly), with each test
-# picking its member's conflicting `test` group via `config_settings`
-# (pytest 7 for app-a, pytest 9 for app-b).
+# pytest comes from the per-app test repos, each auto-pinned to its uv conflict
+# variant (pytest 7 for app-a, pytest 9 for app-b).
 
 py_test(
     name = "app_a_test",
@@ -44,13 +42,10 @@ py_test(
         "project/tools/pytest_main.py",
     ],
     args = ["$(rootpath project/apps/app-a/tests/test_app_a.py)"],
-    config_settings = {
-        "@pypi//_variants": "group_app-a_test",
-    },
     main = "project/tools/pytest_main.py",
     deps = [
         ":app_a",
-        requirement("pytest"),
+        "@pypi_test_a//pytest",
     ],
 )
 
@@ -61,12 +56,9 @@ py_test(
         "project/tools/pytest_main.py",
     ],
     args = ["$(rootpath project/apps/app-b/tests/test_app_b.py)"],
-    config_settings = {
-        "@pypi//_variants": "group_app-b_test",
-    },
     main = "project/tools/pytest_main.py",
     deps = [
         ":app_b",
-        requirement("pytest"),
+        "@pypi_test_b//pytest",
     ],
 )

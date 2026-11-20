@@ -1,0 +1,55 @@
+module(name = "sdists_rules_pycross")
+
+bazel_dep(name = "rules_pycross")
+git_override(
+    module_name = "rules_pycross",
+    commit = "e81bcb316331ab1c3741eefc09c1e09ddf5372b1",
+    remote = "https://github.com/jvolkman/rules_pycross.git",
+)
+bazel_dep(name = "rules_python", version = "2.5.1")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.12",
+)
+
+uv = use_extension("@rules_pycross//pycross/extensions:uv.bzl", "uv")
+
+# Separate build-tools lock (setuptools, wheel, cython) so the shared project
+# lock stays untouched.
+uv.workspace(
+    name = "build_tools",
+    lock_file = "//build_tools:uv.lock",
+)
+uv.repo(
+    name = "build_tools",
+    workspace = "build_tools",
+)
+
+# The shared project lock (crcmod and datrie, both sdist-only).
+uv.workspace(
+    name = "pypi",
+    lock_file = "//:project/uv.lock",
+)
+uv.repo(
+    name = "pypi",
+    workspace = "pypi",
+)
+uv.package(
+    name = "*",
+    build_tools_repo = "build_tools",
+    workspace = "pypi",
+)
+
+# Naive setup (for //naive:sdist_test, tagged manual): no build_tools_repo,
+# so setuptools/wheel/cython are missing when building the sdists.
+uv.workspace(
+    name = "pypi_naive",
+    lock_file = "//:project/uv.lock",
+)
+uv.repo(
+    name = "pypi_naive",
+    workspace = "pypi_naive",
+)
+use_repo(uv, "build_tools", "pypi", "pypi_naive")

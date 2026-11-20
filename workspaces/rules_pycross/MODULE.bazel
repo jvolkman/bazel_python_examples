@@ -3,7 +3,7 @@ module(name = "workspaces_rules_pycross")
 bazel_dep(name = "rules_pycross")
 git_override(
     module_name = "rules_pycross",
-    commit = "8d78809639063b1582dfda0bd78a39dc8b967ff8",
+    commit = "e81bcb316331ab1c3741eefc09c1e09ddf5372b1",
     remote = "https://github.com/jvolkman/rules_pycross.git",
 )
 bazel_dep(name = "rules_python", version = "2.5.1")
@@ -14,11 +14,6 @@ python.toolchain(
     python_version = "3.12",
 )
 
-# Register `@pypi//_variants` so py_test targets can pick their member's
-# conflicting `test` group via `config_settings`.
-config = use_extension("@rules_python//python/extensions:config.bzl", "config")
-config.add_transition_setting(setting = "@pypi//_variants")
-
 uv = use_extension("@rules_pycross//pycross/extensions:uv.bzl", "uv")
 
 # One workspace = one uv.lock. Members (libs/common, apps/app-a, apps/app-b)
@@ -28,17 +23,31 @@ uv.workspace(
     lock_file = "//:project/uv.lock",
 )
 
-# Single hub: default runtime deps plus each member's test group (marked
-# testonly so py_library targets cannot depend on pytest). There is no member
-# list to maintain, and the root `dev` group is never selected, so
+# The hub: default (runtime) dependencies of every workspace member. There is no
+# member list to maintain, and the root `dev` group is simply not selected, so
 # [dependency-groups] stays in pyproject.toml untouched.
 uv.repo(
     name = "pypi",
-    dependency_groups = [
-        "default",
-        "group:test;testonly",
-    ],
+    dependency_groups = ["default"],
     projects = ["*"],
     workspace = "mono",
 )
-use_repo(uv, "pypi")
+
+# Test-only views onto the same workspace. Each requests one member's
+# conflicting `test` group, so rules_pycross selects its variant automatically
+# with no `flags` or `config_settings` needed on test targets. All three repos
+# share one backing package repo, so variant-independent packages are fetched
+# and installed once.
+uv.repo(
+    name = "pypi_test_a",
+    dependency_groups = ["group:test;testonly"],
+    projects = ["app-a"],
+    workspace = "mono",
+)
+uv.repo(
+    name = "pypi_test_b",
+    dependency_groups = ["group:test;testonly"],
+    projects = ["app-b"],
+    workspace = "mono",
+)
+use_repo(uv, "pypi", "pypi_test_a", "pypi_test_b")

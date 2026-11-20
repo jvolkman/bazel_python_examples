@@ -1,0 +1,18 @@
+[project]
+name = "build-tools"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "setuptools",
+    "wheel",
+    "cython",
+]
+
+[tool.uv]
+package = false
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+default = true

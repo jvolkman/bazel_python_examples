@@ -1,0 +1,15 @@
+load("@rules_python//python:defs.bzl", "py_test")
+
+# Naive approach: plain pip.parse(uv_lock = ...) without environment = {"AR": "ar"}.
+# crcmod builds, then datrie fails during repo fetch because sysconfig's AR
+# points to /tools/llvm/bin/llvm-ar.
+py_test(
+    name = "sdist_test",
+    srcs = ["//:project/src/check_sdists.py"],
+    main = "//:project/src/check_sdists.py",
+    tags = ["manual"],
+    deps = [
+        "@pypi_naive//crcmod",
+        "@pypi_naive//datrie",
+    ],
+)

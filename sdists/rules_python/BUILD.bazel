@@ -1,0 +1,13 @@
+load("@rules_python//python:defs.bzl", "py_test")
+
+exports_files(["project/src/check_sdists.py"])
+
+py_test(
+    name = "sdist_test",
+    srcs = ["project/src/check_sdists.py"],
+    main = "project/src/check_sdists.py",
+    deps = [
+        "@pypi//crcmod",
+        "@pypi//datrie",
+    ],
+)

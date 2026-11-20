@@ -1,6 +1,6 @@
 # Dependency cycles with rules_pycross (`main`)
 
-This module tests the Apache Airflow lock in [`project/`](../project) (`apache-airflow[apache-tinkerpop]==3.4.0` and `apache-airflow-providers-apache-tinkerpop==1.2.2`) using [rules_pycross](https://github.com/jvolkman/rules_pycross) pinned to `main` (`8d788096`) and rules_python 2.5.1 (toolchain and `py_test`), on Bazel 9.3.2 and Python 3.14. See [`cycles/README.md`](../README.md) for the scenario overview.
+This module tests the Apache Airflow lock in [`project/`](../project) (`apache-airflow[apache-tinkerpop]==3.4.0` and `apache-airflow-providers-apache-tinkerpop==1.2.2`) using [rules_pycross](https://github.com/jvolkman/rules_pycross) pinned to `main` (`e81bcb31`) and rules_python 2.5.1 (toolchain and `py_test`), on Bazel 9.3.2 and Python 3.14. See [`cycles/README.md`](../README.md) for the scenario overview.
 
 ## Setup
 
@@ -12,7 +12,7 @@ rules_pycross finds strongly connected components (SCCs) in `uv.lock` automatica
 bazel_dep(name = "rules_pycross")
 git_override(
     module_name = "rules_pycross",
-    commit = "8d78809639063b1582dfda0bd78a39dc8b967ff8",
+    commit = "e81bcb316331ab1c3741eefc09c1e09ddf5372b1",
     remote = "https://github.com/jvolkman/rules_pycross.git",
 )
 bazel_dep(name = "rules_python", version = "2.5.1")

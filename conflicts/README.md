@@ -22,5 +22,5 @@ One [`project/uv.lock`](project/uv.lock) holds `torch 2.15.0+cpu` and `torch 2.1
 ## Modules
 
 - [`rules_python/`](rules_python/README.md) (rules_python 2.5.1)
-- [`rules_pycross/`](rules_pycross/README.md) (rules_pycross `main`, `8d788096`)
+- [`rules_pycross/`](rules_pycross/README.md) (rules_pycross `main`, `e81bcb31`)
 - [`rules_py/`](rules_py/README.md) (rules_py 2.0.0-alpha.11)

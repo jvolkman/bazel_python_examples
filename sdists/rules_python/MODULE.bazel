@@ -1,0 +1,28 @@
+module(name = "sdists_rules_python")
+
+bazel_dep(name = "rules_python", version = "2.5.1")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.12",
+)
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    environment = {"AR": "ar"},
+    hub_name = "pypi",
+    python_version = "3.12",
+    uv_lock = "//:project/uv.lock",
+)
+
+# Naive setup (for //naive:sdist_test, tagged manual): without AR=ar,
+# python-build-standalone's sysconfig points AR at /tools/llvm/bin/llvm-ar,
+# which does not exist on the host and breaks datrie's build_clib step.
+pip.parse(
+    extra_pip_args = ["--no-cache-dir"],
+    hub_name = "pypi_naive",
+    python_version = "3.12",
+    uv_lock = "//:project/uv.lock",
+)
+use_repo(pip, "pypi", "pypi_naive")
