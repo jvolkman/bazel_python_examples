@@ -1,4 +1,4 @@
-# Scenario 5: wheel selection across glibc and musl (`bcrypt` and `cbor2`)
+# Wheel selection across glibc and musl (`bcrypt` and `cbor2`)
 
 When a package ships multiple Linux wheels in one `uv.lock`, how does each Bazel ruleset decide
 which wheel to pick by default, how do you cap glibc for an older deployment target (such as RHEL 7

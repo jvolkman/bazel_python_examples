@@ -1,4 +1,4 @@
-# Scenario 4: building C-extension sdists (`crcmod` and `datrie`)
+# Building C-extension sdists (`crcmod` and `datrie`)
 
 Some PyPI packages ship only source distributions (`.tar.gz` sdists) with no pre-built wheels. [`project/`](project) locks two sdist-only C extensions on Python 3.12 (Linux x86_64), neither of which needs external system C libraries:
 

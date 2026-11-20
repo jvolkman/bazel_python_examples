@@ -1,4 +1,4 @@
-# Scenario 3: marker-gated cyclic dependencies (Apache Airflow)
+# Marker-gated cyclic dependencies (Apache Airflow)
 
 Python package metadata allows circular dependencies, while Bazel's target graph must be acyclic. [`project/`](project) locks a real PyPI cycle from Apache Airflow:
 

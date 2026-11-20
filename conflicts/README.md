@@ -1,4 +1,4 @@
-# Scenario 1: conflicting extras (`torch` CPU vs CUDA)
+# Conflicting extras (`torch` CPU vs CUDA)
 
 This scenario uses the setup from uv's PyTorch documentation in [`project/pyproject.toml`](project/pyproject.toml):
 

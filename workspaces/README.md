@@ -1,4 +1,4 @@
-# Scenario 2: uv workspace with conflicting dependency groups
+# uv workspace with conflicting dependency groups
 
 This scenario comes from a common question about uv workspaces in Bazel: given one workspace and one lock file, how do you expose a single hub with every member's runtime dependencies while leaving a root `dev` group (linters, type stubs) out of Bazel, without editing `[dependency-groups]` in the root `pyproject.toml` or maintaining a member list by hand?
 
