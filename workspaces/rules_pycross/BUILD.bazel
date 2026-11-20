@@ -33,8 +33,9 @@ py_library(
     ],
 )
 
-# pytest comes from the per-app test repos, each pinned to its uv conflict
-# variant (pytest 7 for app-a, pytest 9 for app-b).
+# pytest comes from the same `@pypi` hub (marked testonly), with each test
+# picking its member's conflicting `test` group via `config_settings`
+# (pytest 7 for app-a, pytest 9 for app-b).
 
 py_test(
     name = "app_a_test",
@@ -43,10 +44,13 @@ py_test(
         "project/tools/pytest_main.py",
     ],
     args = ["$(rootpath project/apps/app-a/tests/test_app_a.py)"],
+    config_settings = {
+        "@pypi//_variants": "group_app-a_test",
+    },
     main = "project/tools/pytest_main.py",
     deps = [
         ":app_a",
-        "@pypi_test_a//pytest",
+        requirement("pytest"),
     ],
 )
 
@@ -57,9 +61,12 @@ py_test(
         "project/tools/pytest_main.py",
     ],
     args = ["$(rootpath project/apps/app-b/tests/test_app_b.py)"],
+    config_settings = {
+        "@pypi//_variants": "group_app-b_test",
+    },
     main = "project/tools/pytest_main.py",
     deps = [
         ":app_b",
-        "@pypi_test_b//pytest",
+        requirement("pytest"),
     ],
 )

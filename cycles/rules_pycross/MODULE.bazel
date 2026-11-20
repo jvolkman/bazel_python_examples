@@ -3,7 +3,7 @@ module(name = "cycles_rules_pycross")
 bazel_dep(name = "rules_pycross")
 git_override(
     module_name = "rules_pycross",
-    commit = "bd4800c5abacdfcc2a9053872f82e1bdd19ce22c",
+    commit = "8d78809639063b1582dfda0bd78a39dc8b967ff8",
     remote = "https://github.com/jvolkman/rules_pycross.git",
 )
 bazel_dep(name = "rules_python", version = "2.5.1")

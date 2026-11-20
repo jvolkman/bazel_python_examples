@@ -14,13 +14,13 @@ One [`project/uv.lock`](project/uv.lock) holds `torch 2.15.0+cpu` and `torch 2.1
 | --- | --- | --- | --- |
 | Reads `[tool.uv] conflicts` | No | Yes | No ([#1510](https://github.com/aspect-build/rules_py/issues/1510)) |
 | Naive setup (shared `uv.lock`) | Fails during extension evaluation: `attempting to override an existing repo ... torch ...` | Fails analysis: `No uv conflict variant selected. Set one of the _variants flags ...`. Passing the flag works | `torch` is absent from the hub because extras are never activated. Mapping extras to groups builds, but CUDA fails at import (`libcudart.so.13: cannot open shared object file`) because the conflict-gated `cuda-toolkit[...]` edge is dropped |
-| Working setup | Export one requirements file per extra (`uv export --extra <v>`) and define one `pip.parse` hub per variant (`@pypi_cpu`, `@pypi_cu132`) | Use the shared `uv.lock` unchanged with two `uv.repo` views, each requesting one extra (`dependency_groups = ["default", "optional:<v>"]`); each repo selects its variant automatically without `flags` | Keep a separate `pyproject.toml` and `uv.lock` per variant (no extras, no conflicts), register both on one hub, and pick them with `py_test(dep_group = ...)` |
-| How targets pick a variant | Hub name | Repo name (repo transition) or a global flag | `dep_group` on the test/binary (transition) or a global flag |
+| Working setup | Export one requirements file per extra (`uv export --extra <v>`) and define one `pip.parse` hub per variant (`@pypi_cpu`, `@pypi_cu132`) | Use the shared `uv.lock` unchanged with one `uv.repo` (`@pypi`) covering both extras, register `@pypi//_variants` with `rules_python`'s `config.add_transition_setting`, and pick the variant per target via `py_test(config_settings = {"@pypi//_variants": "extra_<v>"})`. Per-variant `uv.repo` views also work | Keep a separate `pyproject.toml` and `uv.lock` per variant (no extras, no conflicts), register both on one hub, and pick them with `py_test(dep_group = ...)` |
+| How targets pick a variant | Hub name | `config_settings` on `@pypi//_variants` (target transition), repo name (repo transition), or a global flag | `dep_group` on the test/binary (transition) or a global flag |
 | Uses shared `uv.lock` as-is | No (exported requirements files) | Yes | No (per-variant locks). Sharing one lock works only if you copy the `cuda-toolkit[...]` edge by hand |
 | Extra maintenance | Export script, freshness tests, `experimental_index_url_overrides` for PyTorch indexes, and a helper to put back extras stripped by `uv export` | None | Maintain and relock two separate variant locks |
 
 ## Modules
 
 - [`rules_python/`](rules_python/README.md) (rules_python 2.5.1)
-- [`rules_pycross/`](rules_pycross/README.md) (rules_pycross `main`, `bd4800c5`)
+- [`rules_pycross/`](rules_pycross/README.md) (rules_pycross `main`, `8d788096`)
 - [`rules_py/`](rules_py/README.md) (rules_py 2.0.0-alpha.11)

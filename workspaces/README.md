@@ -17,15 +17,15 @@ Each Bazel module builds `//:common`, `//:app_a`, and `//:app_b`, and runs `//:a
 
 | | [rules_python](rules_python/README.md) | [rules_pycross](rules_pycross/README.md) | [rules_py](rules_py/README.md) |
 | --- | --- | --- | --- |
-| Where hub contents are chosen | Exported requirements files (`uv export --all-packages --no-dev`, `--package app-a --group test`, ...) | `MODULE.bazel`: `uv.repo(projects = ["*"], dependency_groups = ["default"])` | The root pyproject's `[dependency-groups]`. Without that table, rules_py creates one implicit group of all `[manifest].members` |
+| Where hub contents are chosen | Exported requirements files (`uv export --all-packages --no-dev`, `--package app-a --group test`, ...) | `MODULE.bazel`: `uv.repo(projects = ["*"], dependency_groups = ["default", "group:test;testonly"])` | The root pyproject's `[dependency-groups]`. Without that table, rules_py creates one implicit group of all `[manifest].members` |
 | All members, no `dev`, no hand-kept member list | Yes, via `uv export --all-packages --no-dev` | Yes; `dev` is not selected and the root `pyproject.toml` stays untouched | Only by passing a Bazel-only stub `pyproject.toml` with no `[dependency-groups]` so the real root file is never read |
 | Naive setup (shared lock + root pyproject) | Fails during extension evaluation: `attempting to override an existing repo ... pytest ...` (walks every dev-dependency edge, including `dev`) | Works | Fails during extension evaluation: `Editable package app_a ... doesn't have a mandatory uv.override_package(target = ...)`. Once overrides are added, the hub only contains `dev`, so `pydantic` is missing |
-| `pytest` 7 / 9 split | One hub. Each exported file binds to a custom `pip.default` platform keyed on a `//:deps` flag, set per test via `config_settings` | Per-member test repos (`projects = ["app-a"]`, `group:test;testonly`); each selects its variant automatically without `flags` | Member groups are ignored, so they are restated as root groups (`app-a-test = ["app-a", "pytest>=7,<8"]`) and selected with `py_pytest_test(dep_group = ...)` |
+| `pytest` 7 / 9 split | One hub. Each exported file binds to a custom `pip.default` platform keyed on a `//:deps` flag, set per test via `config_settings` | One hub (`@pypi`, with `pytest` marked `testonly`). Each test picks its member's `test` group via `config_settings = {"@pypi//_variants": "group_app-a_test"}` (per-member test repos also work) | Member groups are ignored, so they are restated as root groups (`app-a-test = ["app-a", "pytest>=7,<8"]`) and selected with `py_pytest_test(dep_group = ...)` |
 | Workspace members | Dropped (`-e` lines ignored; uses `--no-emit-workspace`) | Treated as projects with no targets or overrides; member-to-member dependencies are flattened | Each editable member requires `uv.override_package(target = ...)` |
 | Uses shared `uv.lock` as-is | No (exported requirements files) | Yes | Yes, with two Bazel-only stub `pyproject.toml` files |
 
 ## Modules
 
 - [`rules_python/`](rules_python/README.md) (rules_python 2.5.1)
-- [`rules_pycross/`](rules_pycross/README.md) (rules_pycross `main`, `bd4800c5`)
+- [`rules_pycross/`](rules_pycross/README.md) (rules_pycross `main`, `8d788096`)
 - [`rules_py/`](rules_py/README.md) (rules_py 2.0.0-alpha.11)

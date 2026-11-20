@@ -3,7 +3,7 @@ module(name = "conflicts_rules_pycross")
 bazel_dep(name = "rules_pycross")
 git_override(
     module_name = "rules_pycross",
-    commit = "bd4800c5abacdfcc2a9053872f82e1bdd19ce22c",
+    commit = "8d78809639063b1582dfda0bd78a39dc8b967ff8",
     remote = "https://github.com/jvolkman/rules_pycross.git",
 )
 bazel_dep(name = "rules_python", version = "2.5.1")
@@ -14,18 +14,19 @@ python.toolchain(
     python_version = "3.12",
 )
 
+# Register `@pypi//_variants` so py_test/py_binary targets can pick a variant
+# with `config_settings = {"@pypi//_variants": ...}`.
+config = use_extension("@rules_python//python/extensions:config.bzl", "config")
+config.add_transition_setting(setting = "@pypi//_variants")
+
 uv = use_extension("@rules_pycross//pycross/extensions:uv.bzl", "uv")
 
-# One workspace = one lock file. Every repo below is a view onto the same
-# backing package repo, so numpy is fetched once and shared.
+# One workspace = one lock file, and one `@pypi` repo covering both conflicting
+# extras. Variant-independent packages like numpy install once across variants.
 uv.workspace(
     name = "torch",
     lock_file = "//:project/uv.lock",
 )
-
-# Naive: one repo with both conflicting extras. uv's `conflicts` become
-# `_variants` bool flags on this repo, and the variant must be chosen on the
-# command line (`--@pypi//_variants:extra_cpu=True`).
 uv.repo(
     name = "pypi",
     dependency_groups = [
@@ -35,25 +36,4 @@ uv.repo(
     ],
     workspace = "torch",
 )
-
-# Per-variant views: each requests only one extra from the conflict set, so
-# rules_pycross selects that variant automatically with no `flags` needed.
-# Targets that depend on @torch_cpu or @torch_cu132 build side by side in one
-# `bazel test //...`.
-uv.repo(
-    name = "torch_cpu",
-    dependency_groups = [
-        "default",
-        "optional:cpu",
-    ],
-    workspace = "torch",
-)
-uv.repo(
-    name = "torch_cu132",
-    dependency_groups = [
-        "default",
-        "optional:cu132",
-    ],
-    workspace = "torch",
-)
-use_repo(uv, "pypi", "torch_cpu", "torch_cu132")
+use_repo(uv, "pypi")
