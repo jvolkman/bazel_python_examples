@@ -1,19 +1,10 @@
-# Dependency cycles: rules_py 2.0.0-alpha.11
+# Dependency cycles with rules_py 2.0.0-alpha.11
 
-The shared project ([`project/`](../project)) locks `apache-airflow[apache-tinkerpop]==3.4.0` and
-`apache-airflow-providers-apache-tinkerpop==1.2.2`, with
-[rules_py](https://github.com/aspect-build/rules_py) 2.0.0-alpha.11, Bazel 9.3.2, Python 3.14.
-
-- `apache-airflow==3.4.0` has an 8-package overlapping base cycle.
-- Its `apache-tinkerpop` extra adds a 9th cycle member
-  (`apache-airflow-providers-apache-tinkerpop==1.2.2`, which depends on `gremlinpython`) gated on
-  `python_full_version < '3.14'`, while `tinkerpop` depends back on `apache-airflow` unconditionally.
+This module tests the Apache Airflow lock in [`project/`](../project) (`apache-airflow[apache-tinkerpop]==3.4.0` and `apache-airflow-providers-apache-tinkerpop==1.2.2`) using [rules_py](https://github.com/aspect-build/rules_py) 2.0.0-alpha.11, Bazel 9.3.2, and Python 3.14. See [`cycles/README.md`](../README.md) for the scenario overview.
 
 ## Setup
 
-rules_py detects strongly connected components (SCCs) in `uv.lock` automatically and collapses all
-9 packages into a single `py_library` target under `//private/sccs:`. Every member alias in the
-hub points at that shared SCC target.
+rules_py detects strongly connected components (SCCs) in `uv.lock` automatically and collapses all 9 cycle packages into a single `py_library` target under `//private/sccs:`. Every member alias in the hub points at that shared target.
 
 [`MODULE.bazel`](MODULE.bazel):
 
@@ -39,7 +30,7 @@ Run:
 
 ```sh
 bazel test //...                                # airflow_imports_test only (checks airflow + standard import)
-bazel test //:airflow_test //:tinkerpop_test    # reproduces BOTH SCC bugs on Python 3.14
+bazel test //:airflow_test //:tinkerpop_test    # reproduces both SCC bugs on Python 3.14
 ```
 
 ## Result
@@ -47,32 +38,20 @@ bazel test //:airflow_test //:tinkerpop_test    # reproduces BOTH SCC bugs on Py
 | Command | Target | Status | Observed |
 | --- | --- | --- | --- |
 | `bazel test //...` | `//:airflow_imports_test` | pass | `airflow=True standard=True tinkerpop=False gremlin=True` |
-| `bazel test //:airflow_test` | `//:airflow_test` | **fail** | `airflow=True standard=True tinkerpop=False gremlin=True` (`AssertionError: unexpected gremlin_python on Python 3.14`) |
-| `bazel test //:tinkerpop_test` | `//:tinkerpop_test` | **fail** | `airflow=True standard=True tinkerpop=False gremlin=True` (`AssertionError: missing tinkerpop (direct dep!)`) |
+| `bazel test //:airflow_test` | `//:airflow_test` | fail | `airflow=True standard=True tinkerpop=False gremlin=True` (`AssertionError: unexpected gremlin_python on Python 3.14`) |
+| `bazel test //:tinkerpop_test` | `//:tinkerpop_test` | fail | `airflow=True standard=True tinkerpop=False gremlin=True` (`AssertionError: missing tinkerpop (direct dep!)`) |
 
-## What fails on marker-gated cycles
+## Why both strict tests fail
 
-In `uv/private/extension/graph_utils.bzl` (`collect_sccs`), rules_py computes SCCs without
-evaluating environment markers, collapses all 9 packages into one shared `py_library`, and triggers
-**both** over-inclusion and under-inclusion on Python 3.14:
+In `uv/private/extension/graph_utils.bzl` (`collect_sccs`), rules_py computes SCCs without evaluating environment markers and collapses all 9 packages into one shared `py_library`. On Python 3.14, that causes both over-inclusion and under-inclusion:
 
-1. **Over-inclusion (`//:airflow_test`):** rules_py unions every SCC member's external dependencies
-   into the shared SCC target using their raw edge markers. Because `tinkerpop -> gremlinpython` is
-   unconditional, `gremlin_python` leaks into `@pypi//apache_airflow` even though `tinkerpop`
-   itself is inactive on Python 3.14.
-2. **Under-inclusion (`//:tinkerpop_test`):** rules_py gates each SCC member's wheel on the union
-   of its **inbound intra-SCC edge markers**. Because `tinkerpop`'s only inbound edge inside the
-   SCC is `apache-airflow -> tinkerpop; python_full_version < '3.14'`, rules_py replaces
-   `tinkerpop`'s own wheel with `:empty` on Python 3.14 — even when a target depends directly on
-   `@pypi//apache_airflow_providers_apache_tinkerpop` (and while still pulling in `gremlin_python`).
+1. `//:airflow_test` leaks `gremlin_python`. rules_py unions every SCC member's external dependencies into the shared target using their raw edge markers. Because `tinkerpop -> gremlinpython` has no Python 3.14 restriction, `gremlin_python` ends up in `@pypi//apache_airflow` even though `tinkerpop` itself is inactive on Python 3.14.
+2. `//:tinkerpop_test` drops `tinkerpop` itself. rules_py gates each member's wheel on the union of its inbound intra-SCC edge markers. Because `tinkerpop`'s only inbound edge inside the SCC is `apache-airflow -> tinkerpop; python_full_version < '3.14'`, rules_py replaces `tinkerpop`'s wheel with `:empty` on Python 3.14 even when a target depends directly on `@pypi//apache_airflow_providers_apache_tinkerpop` (while still leaving `gremlin_python` in the venv).
 
-Both `//:airflow_test` and `//:tinkerpop_test` are tagged `manual` so `bazel test //...` passes
-via `//:airflow_imports_test`.
+Both `//:airflow_test` and `//:tinkerpop_test` are tagged `manual` so `bazel test //...` passes via `//:airflow_imports_test`.
 
-## Friction / limitations
+## Friction and limitations
 
-- **Marker-gated cycles both leak external deps and silently drop direct dependencies.**
-- **No `MODULE.bazel` workaround on the shared lock.** SCC grouping happens automatically inside
-  the `uv` extension with no way to preserve per-entry reachability without editing `uv.lock`.
-- Like other `rules_py` projects, targets must specify `dep_group = "cycle-app"` (or set a default
-  in `.bazelrc`).
+- Marker-gated cycles leak external dependencies of inactive members and drop direct dependencies whose inbound cycle edges are inactive.
+- There is no `MODULE.bazel` setting to preserve per-entry reachability on the shared lock; fixing it requires editing `uv.lock`.
+- As in other rules_py modules, targets must set `dep_group = "cycle-app"` (or configure a default in `.bazelrc`).

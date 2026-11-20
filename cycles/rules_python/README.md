@@ -1,19 +1,8 @@
-# Dependency cycles: rules_python 2.5.1
+# Dependency cycles with rules_python 2.5.1
 
-The shared project ([`project/`](../project)) locks `apache-airflow[apache-tinkerpop]==3.4.0` and
-`apache-airflow-providers-apache-tinkerpop==1.2.2`.
+This module tests the Apache Airflow lock in [`project/`](../project) (`apache-airflow[apache-tinkerpop]==3.4.0` and `apache-airflow-providers-apache-tinkerpop==1.2.2`) using rules_python 2.5.1, Bazel 9.3.2, and Python 3.14. See [`cycles/README.md`](../README.md) for the scenario overview.
 
-- `apache-airflow==3.4.0` has an 8-package overlapping base cycle (`apache-airflow`,
-  `apache-airflow-core`, `apache-airflow-task-sdk`, and 5 default providers).
-- Its `apache-tinkerpop` extra adds a 9th cycle member
-  (`apache-airflow-providers-apache-tinkerpop==1.2.2`, which depends on `gremlinpython`) gated on
-  `python_full_version < '3.14'`, while `tinkerpop` depends back on `apache-airflow` unconditionally.
-
-**Summary:** `pip.parse(uv_lock = ...)` reads the shared `uv.lock`, but fails analysis with
-`cycle in dependency graph` until you manually discover and merge all 8 overlapping Airflow cycle
-packages into one `experimental_requirement_cycles` entry. Including the 9th (`tinkerpop`) for
-Python 3.12/3.13 support over-includes `tinkerpop` and `gremlin_python` on Python 3.14; omitting it
-passes on 3.14 but breaks Python 3.12/3.13.
+`pip.parse(uv_lock = ...)` reads the shared `uv.lock`, but fails analysis with `cycle in dependency graph` until you find and merge all 8 overlapping Airflow cycle packages into one `experimental_requirement_cycles` entry. Adding the 9th package (`tinkerpop`) so Python 3.12 and 3.13 keep working causes Python 3.14 targets to pull in `tinkerpop` and `gremlin_python`; leaving it out passes on 3.14 but breaks 3.12 and 3.13.
 
 ## Setup
 
@@ -46,10 +35,7 @@ pip.parse(
 use_repo(pip, "pypi_cycles")
 ```
 
-`MODULE.bazel` also defines:
-- `@pypi_naive` (no `experimental_requirement_cycles`) for [`naive/BUILD.bazel`](naive/BUILD.bazel).
-- `@pypi_all_versions` (all 9 packages, including `apache-airflow-providers-apache-tinkerpop`) for
-  [`all_versions/BUILD.bazel`](all_versions/BUILD.bazel).
+`MODULE.bazel` also defines `@pypi_naive` (no `experimental_requirement_cycles`, used by [`naive/BUILD.bazel`](naive/BUILD.bazel)) and `@pypi_all_versions` (all 9 packages including `apache-airflow-providers-apache-tinkerpop`, used by [`all_versions/BUILD.bazel`](all_versions/BUILD.bazel)).
 
 Run:
 
@@ -66,23 +52,15 @@ bazel test //all_versions:airflow_test     # reproduces tinkerpop + gremlin over
 | `bazel test //...` | `//:airflow_test` | pass | `airflow=True standard=True tinkerpop=False gremlin=False` |
 | `bazel test //...` | `//:tinkerpop_test` | pass | `airflow=True standard=True tinkerpop=True gremlin=True` |
 | `bazel build //naive:airflow_test` | `//naive:airflow_test` | analysis error | `cycle in dependency graph` |
-| `bazel test //all_versions:airflow_test` | `//all_versions:airflow_test` | **fail** | `airflow=True standard=True tinkerpop=True gremlin=True` (`AssertionError: unexpected tinkerpop on Python 3.14`) |
+| `bazel test //all_versions:airflow_test` | `//all_versions:airflow_test` | fail | `airflow=True standard=True tinkerpop=True gremlin=True` (`AssertionError: unexpected tinkerpop on Python 3.14`) |
 
-## What happened with the naive and multi-version setups
+## Naive and multi-version setups
 
-1. **Naive (`@pypi_naive`):** fails during analysis with `cycle in dependency graph` across
-   Airflow's overlapping provider cycles.
-2. **Multi-version (`@pypi_all_versions`):** listing all 9 packages in
-   `experimental_requirement_cycles` keeps Python 3.12, 3.13, and 3.14 building, but collapses all
-   9 into one static group target — so `//all_versions:airflow_test` pulls both `tinkerpop` and
-   `gremlin_python` into Python 3.14 targets even though the `apache-tinkerpop` extra is gated on
-   `python_full_version < '3.14'`.
+With `@pypi_naive`, `bazel build //naive:airflow_test` fails during analysis with `cycle in dependency graph` across Airflow's overlapping provider cycles.
 
-## Friction / limitations
+With `@pypi_all_versions`, listing all 9 packages in `experimental_requirement_cycles` keeps Python 3.12, 3.13, and 3.14 building, but collapses all 9 into one static group target. As a result, `//all_versions:airflow_test` pulls both `tinkerpop` and `gremlin_python` into Python 3.14 builds even though the `apache-tinkerpop` extra has the marker `python_full_version < '3.14'`.
 
-- **Overlapping cycles must be discovered and merged by hand.** Airflow has 8 interacting packages
-  across 6 cycles; `experimental_requirement_cycles` requires listing all of them in a single
-  merged group and updating that list whenever Airflow changes its default providers.
-- **No marker-aware cycles.** `experimental_requirement_cycles` is a static list, so a
-  Python-version-gated cycle forces a tradeoff: omit `tinkerpop` (breaks Python 3.12/3.13) or
-  include it (over-includes `tinkerpop` and `gremlin_python` on Python 3.14).
+## Friction and limitations
+
+- Overlapping cycles have to be discovered and merged by hand. Airflow has 8 interacting packages across 6 cycles, and the list in `experimental_requirement_cycles` needs to be updated whenever Airflow changes its default providers.
+- `experimental_requirement_cycles` is static and does not check markers. For a Python-version-gated cycle, you have to choose between omitting `tinkerpop` (breaking Python 3.12 and 3.13) or including it (over-including `tinkerpop` and `gremlin_python` on Python 3.14).

@@ -90,7 +90,7 @@ rules_pycross has no pytest rule of its own, so the tests are plain `py_test` ta
 symlink), with no BUILD files added there.
 
 Each test repo requests only one member's `test` group (`projects = ["app-a"]` or `["app-b"]`),
-so rules_pycross selects that variant automatically — no `flags` attribute is needed.
+so rules_pycross selects that variant automatically with no `flags` attribute needed.
 
 All three repos are views onto one backing package repo (`@mono__pkgs`). Variant-independent
 packages (`requests`, `pydantic`, `attrs`, and pytest's shared dependencies) are fetched and

@@ -11,9 +11,9 @@ rules_pycross reads the uv lock's `conflicts` table itself. Each conflicting ite
 `bool_flag` in the generated repo (`@<repo>//_variants:extra_cpu`, `...:extra_cu132`), and the
 lock's conflict markers (`extra == 'extra-9-torch-app-cpu'`) select on those flags. When a
 `uv.repo` requests only one item from a conflict set (`optional:cpu` or `optional:cu132`),
-rules_pycross selects it automatically with a repo transition — no `flags` attribute is needed.
-Two repos over the same workspace therefore give one CPU view and one CUDA view, and both build
-in one invocation. All repos share one backing package repo (`@<workspace>__pkgs`), so
+rules_pycross selects it automatically with a repo transition, so no `flags` attribute is needed.
+Two repos over the same workspace give one CPU view and one CUDA view, and both build in one
+invocation. All repos share one backing package repo (`@<workspace>__pkgs`), so
 variant-independent packages like numpy are fetched and installed once.
 
 [`MODULE.bazel`](MODULE.bazel) (trimmed):
