@@ -1,10 +1,9 @@
-# Workspaces: rules_pycross (`main`)
+# Workspaces: rules_pycross 2.2.0
 
 The uv workspace in [`project/`](../project) (root `monorepo` with a `dev` group, members
 `libs/common`, `apps/app-a`, `apps/app-b`, and conflicting per-member `test` groups that need
-pytest 7 and pytest 8+), with [rules_pycross](https://github.com/jvolkman/rules_pycross) pinned to
-`main` (`e81bcb31`) and rules_python 2.5.1 (toolchain and `py_library`/`py_test`), Bazel 9.3.2,
-Python 3.12.
+pytest 7 and pytest 8+), with [rules_pycross](https://github.com/jvolkman/rules_pycross) 2.2.0 and
+rules_python 2.5.1 (toolchain and `py_library`/`py_test`), Bazel 9.3.2, Python 3.12.
 
 ## Setup
 
@@ -22,12 +21,7 @@ requests only one item of the conflict set, rules_pycross selects its variant au
 [`MODULE.bazel`](MODULE.bazel) (trimmed):
 
 ```starlark
-bazel_dep(name = "rules_pycross")
-git_override(
-    module_name = "rules_pycross",
-    commit = "e81bcb316331ab1c3741eefc09c1e09ddf5372b1",
-    remote = "https://github.com/jvolkman/rules_pycross.git",
-)
+bazel_dep(name = "rules_pycross", version = "2.2.0")
 bazel_dep(name = "rules_python", version = "2.5.1")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")

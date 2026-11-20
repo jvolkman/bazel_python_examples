@@ -1,8 +1,8 @@
-# Conflicts: rules_pycross (`main`)
+# Conflicts: rules_pycross 2.2.0
 
 uv `conflicts` between the `cpu` and `cu132` extras of the shared
 [`project/`](../project) (one `uv.lock`, two torch builds), with
-[rules_pycross](https://github.com/jvolkman/rules_pycross) pinned to `main` (`e81bcb31`) and
+[rules_pycross](https://github.com/jvolkman/rules_pycross) 2.2.0 and
 rules_python 2.5.1 (toolchain, `py_test`, and `config_settings` transition), Bazel 9.3.2, Python 3.12.
 
 ## Setup
@@ -19,12 +19,7 @@ configurations.
 [`MODULE.bazel`](MODULE.bazel) (trimmed):
 
 ```starlark
-bazel_dep(name = "rules_pycross")
-git_override(
-    module_name = "rules_pycross",
-    commit = "e81bcb316331ab1c3741eefc09c1e09ddf5372b1",
-    remote = "https://github.com/jvolkman/rules_pycross.git",
-)
+bazel_dep(name = "rules_pycross", version = "2.2.0")
 bazel_dep(name = "rules_python", version = "2.5.1")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")

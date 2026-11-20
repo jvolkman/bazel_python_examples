@@ -1,7 +1,7 @@
-# Wheel selection across glibc and musl with rules_pycross (`main`)
+# Wheel selection across glibc and musl with rules_pycross 2.2.0
 
 This module tests wheel selection for [`project/`](../project) (`bcrypt==5.0.0` and `cbor2==6.3.0`)
-using [rules_pycross](https://github.com/jvolkman/rules_pycross) pinned to `main` (`e81bcb31`) and
+using [rules_pycross](https://github.com/jvolkman/rules_pycross) 2.2.0 and
 rules_python 2.5.1 (toolchain and `py_test`), on Bazel 9.3.2 and Python 3.12. See
 [`wheel_selection/README.md`](../README.md) for the scenario overview.
 
@@ -19,12 +19,7 @@ One `uv.workspace` and `uv.repo` handles every combination without changing `MOD
 [`MODULE.bazel`](MODULE.bazel):
 
 ```starlark
-bazel_dep(name = "rules_pycross")
-git_override(
-    module_name = "rules_pycross",
-    commit = "e81bcb316331ab1c3741eefc09c1e09ddf5372b1",
-    remote = "https://github.com/jvolkman/rules_pycross.git",
-)
+bazel_dep(name = "rules_pycross", version = "2.2.0")
 bazel_dep(name = "rules_python", version = "2.5.1")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")

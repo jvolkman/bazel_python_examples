@@ -1,8 +1,8 @@
-# Building C-extension sdists with rules_pycross (`main`)
+# Building C-extension sdists with rules_pycross 2.2.0
 
 This module builds the two sdist-only C extensions in [`project/`](../project) (`crcmod==1.7` and
-`datrie==0.8.3`) using [rules_pycross](https://github.com/jvolkman/rules_pycross) pinned to `main`
-(`e81bcb31`) and rules_python 2.5.1 (toolchain and `py_test`), on Bazel 9.3.2 and Python 3.12. See
+`datrie==0.8.3`) using [rules_pycross](https://github.com/jvolkman/rules_pycross) 2.2.0 and
+rules_python 2.5.1 (toolchain and `py_test`), on Bazel 9.3.2 and Python 3.12. See
 [`sdists/README.md`](../README.md) for the scenario overview.
 
 ## Setup
@@ -25,12 +25,7 @@ backends in either of two ways:
 [`MODULE.bazel`](MODULE.bazel) (trimmed):
 
 ```starlark
-bazel_dep(name = "rules_pycross")
-git_override(
-    module_name = "rules_pycross",
-    commit = "e81bcb316331ab1c3741eefc09c1e09ddf5372b1",
-    remote = "https://github.com/jvolkman/rules_pycross.git",
-)
+bazel_dep(name = "rules_pycross", version = "2.2.0")
 bazel_dep(name = "rules_python", version = "2.5.1")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
@@ -98,6 +93,6 @@ build._exceptions.BuildBackendException: Backend 'setuptools.build_meta:__legacy
   shown here) or in a `build` dependency group inside your main project (which stays out of `@pypi`
   while `<workspace>__build` picks it up automatically).
 - **Bug found and fixed while writing this example.** `datrie` uses `setuptools` `build_clib` to
-  archive `libdatrie.a` with `ar`. Prior to PR #402 (`e81bcb31`), `extract_cc_layer` passed
+  archive `libdatrie.a` with `ar`. Prior to rules_pycross 2.2.0 (PR #402), `extract_cc_layer` passed
   `output_file = None` to `cc_common.create_link_variables`, so `rules_cc` omitted `archiver_flags`
   and `rules_pycross` exported `ARFLAGS=""`, failing with `/usr/bin/ar: invalid option -- '/'`.

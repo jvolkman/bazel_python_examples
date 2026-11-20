@@ -5,7 +5,7 @@ Side-by-side examples of how three Bazel Python rulesets handle the same `uv.loc
 | Ruleset | Version | Python rules used |
 | --- | --- | --- |
 | [rules_python](https://github.com/bazel-contrib/rules_python) | 2.5.1 | its own `py_library` / `py_test` |
-| [rules_pycross](https://github.com/jvolkman/rules_pycross) | `main` (`e81bcb31`) | rules_python's `py_library` / `py_test` |
+| [rules_pycross](https://github.com/jvolkman/rules_pycross) | 2.2.0 | rules_python's `py_library` / `py_test` |
 | [rules_py](https://github.com/aspect-build/rules_py) | 2.0.0-alpha.11 (BCR module `rules_py`) | its own `py_library` / `py_test` / `py_pytest_test` |
 
 All modules use Bazel 9.3.2 on Linux x86_64. The `conflicts/`, `workspaces/`, `sdists/`, and `wheel_selection/` examples run on Python 3.12. The `cycles/` example runs on Python 3.14 so that Airflow's `python_version != "3.14"` cycle edge is inactive.

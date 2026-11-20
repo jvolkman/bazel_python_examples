@@ -33,5 +33,5 @@ On Python 3.14 (Linux x86_64), each module tests two entry points in [`project/s
 ## Modules
 
 - [`rules_python/`](rules_python/README.md) (rules_python 2.5.1)
-- [`rules_pycross/`](rules_pycross/README.md) (rules_pycross `main`, `e81bcb31`)
+- [`rules_pycross/`](rules_pycross/README.md) (rules_pycross 2.2.0)
 - [`rules_py/`](rules_py/README.md) (rules_py 2.0.0-alpha.11)

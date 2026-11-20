@@ -1,11 +1,6 @@
 module(name = "wheel_selection_rules_pycross")
 
-bazel_dep(name = "rules_pycross")
-git_override(
-    module_name = "rules_pycross",
-    commit = "e81bcb316331ab1c3741eefc09c1e09ddf5372b1",
-    remote = "https://github.com/jvolkman/rules_pycross.git",
-)
+bazel_dep(name = "rules_pycross", version = "2.2.0")
 bazel_dep(name = "rules_python", version = "2.5.1")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
