@@ -1,0 +1,17 @@
+module(name = "wheel_selection_rules_py")
+
+bazel_dep(name = "rules_py", version = "2.0.0-alpha.11")
+
+interpreters = use_extension("@rules_py//py:extensions.bzl", "python_interpreters")
+interpreters.toolchain(python_version = "3.12")
+use_repo(interpreters, "python_interpreters")
+register_toolchains("@python_interpreters//:all")
+
+uv = use_extension("@rules_py//uv:extensions.bzl", "uv")
+uv.declare_hub(hub_name = "pypi")
+uv.project(
+    hub_name = "pypi",
+    lock = "//:project/uv.lock",
+    pyproject = "//:project/pyproject.toml",
+)
+use_repo(uv, "pypi")

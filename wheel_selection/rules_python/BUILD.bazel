@@ -1,0 +1,133 @@
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("@rules_python//python:py_test.bzl", "py_test")
+load(":transition.bzl", "transitioned_whl")
+
+exports_files([
+    "project/pyproject.toml",
+    "project/uv.lock",
+])
+
+string_flag(
+    name = "target_abi",
+    build_setting_default = "default",
+    values = [
+        "default",
+        "glibc_2_17",
+        "glibc_2_34",
+        "musl_1_2",
+        "musl_1_1",
+    ],
+)
+
+[
+    config_setting(
+        name = "abi_" + abi,
+        flag_values = {":target_abi": abi},
+    )
+    for abi in [
+        "glibc_2_17",
+        "glibc_2_34",
+        "musl_1_2",
+        "musl_1_1",
+    ]
+]
+
+# 1. Default hub (@pypi_default): MVS picks lowest glibc (2.17) for bcrypt,
+#    but uncapped manylinux_* still picks glibc 2.28 for cbor2!
+py_test(
+    name = "bcrypt_default_test",
+    srcs = ["project/src/check_wheel.py"],
+    args = ["dist", "bcrypt", "cp39-abi3-manylinux_2_17_x86_64"],
+    main = "project/src/check_wheel.py",
+    deps = ["@pypi_default//bcrypt"],
+)
+
+py_test(
+    name = "cbor2_default_test",
+    srcs = ["project/src/check_wheel.py"],
+    args = ["dist", "cbor2", "cp312-cp312-manylinux_2_28_x86_64"],
+    main = "project/src/check_wheel.py",
+    deps = ["@pypi_default//cbor2"],
+)
+
+# 2. Custom platforms (@pypi_custom): inspect what rules_python selects for each ABI
+transitioned_whl(
+    name = "bcrypt_glibc_2_17_whl",
+    abi = "glibc_2_17",
+    target = "@pypi_custom//bcrypt:whl",
+)
+
+py_test(
+    name = "bcrypt_glibc_2_17_test",
+    srcs = ["project/src/check_wheel.py"],
+    args = ["whl", "$(rootpath :bcrypt_glibc_2_17_whl)", "cp39-abi3-manylinux_2_17_x86_64"],
+    data = [":bcrypt_glibc_2_17_whl"],
+    main = "project/src/check_wheel.py",
+)
+
+transitioned_whl(
+    name = "bcrypt_glibc_2_34_whl",
+    abi = "glibc_2_34",
+    target = "@pypi_custom//bcrypt:whl",
+)
+
+# Even when the custom platform specifies manylinux_2_34_x86_64, MVS picks the
+# lowest matching wheel (manylinux_2_17) rather than manylinux_2_34!
+py_test(
+    name = "bcrypt_glibc_2_34_test",
+    srcs = ["project/src/check_wheel.py"],
+    args = ["whl", "$(rootpath :bcrypt_glibc_2_34_whl)", "cp39-abi3-manylinux_2_17_x86_64"],
+    data = [":bcrypt_glibc_2_34_whl"],
+    main = "project/src/check_wheel.py",
+)
+
+transitioned_whl(
+    name = "bcrypt_musl_1_2_whl",
+    abi = "musl_1_2",
+    target = "@pypi_custom//bcrypt:whl",
+)
+
+# MVS also applies to musllinux: even when targeting musllinux_1_2_x86_64,
+# rules_python picks the lowest matching wheel (musllinux_1_1).
+py_test(
+    name = "bcrypt_musl_1_2_test",
+    srcs = ["project/src/check_wheel.py"],
+    args = ["whl", "$(rootpath :bcrypt_musl_1_2_whl)", "cp39-abi3-musllinux_1_1_x86_64"],
+    data = [":bcrypt_musl_1_2_whl"],
+    main = "project/src/check_wheel.py",
+)
+
+transitioned_whl(
+    name = "bcrypt_musl_1_1_whl",
+    abi = "musl_1_1",
+    target = "@pypi_custom//bcrypt:whl",
+)
+
+py_test(
+    name = "bcrypt_musl_1_1_test",
+    srcs = ["project/src/check_wheel.py"],
+    args = ["whl", "$(rootpath :bcrypt_musl_1_1_whl)", "cp39-abi3-musllinux_1_1_x86_64"],
+    data = [":bcrypt_musl_1_1_whl"],
+    main = "project/src/check_wheel.py",
+)
+
+transitioned_whl(
+    name = "cbor2_musl_1_2_whl",
+    abi = "musl_1_2",
+    target = "@pypi_custom//cbor2:whl",
+)
+
+py_test(
+    name = "cbor2_musl_1_2_test",
+    srcs = ["project/src/check_wheel.py"],
+    args = ["whl", "$(rootpath :cbor2_musl_1_2_whl)", "cp312-cp312-musllinux_1_2_x86_64"],
+    data = [":cbor2_musl_1_2_whl"],
+    main = "project/src/check_wheel.py",
+)
+
+transitioned_whl(
+    name = "cbor2_glibc_2_17_whl",
+    abi = "glibc_2_17",
+    tags = ["manual"],
+    target = "@pypi_custom//cbor2:whl",
+)

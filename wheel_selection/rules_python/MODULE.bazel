@@ -1,0 +1,111 @@
+module(name = "wheel_selection_rules_python")
+
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_python", version = "2.5.1")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.12",
+)
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+
+# Default hub: uses rules_python's built-in linux_x86_64 platform (glibc-only,
+# uncapped manylinux_* with minimal-version selection).
+pip.parse(
+    hub_name = "pypi_default",
+    python_version = "3.12",
+    uv_lock = "//:project/uv.lock",
+)
+
+# Custom platforms are required to cap glibc (e.g. 2.17) or target musl/Alpine.
+pip.default(
+    arch_name = "x86_64",
+    config_settings = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+        "//:abi_glibc_2_17",
+    ],
+    os_name = "linux",
+    platform = "linux_x86_64_glibc_2_17",
+    whl_abi_tags = [
+        "abi3",
+        "cp{major}{minor}",
+    ],
+    whl_platform_tags = [
+        "linux_x86_64",
+        "manylinux_2_17_x86_64",
+    ],
+)
+
+pip.default(
+    arch_name = "x86_64",
+    config_settings = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+        "//:abi_glibc_2_34",
+    ],
+    os_name = "linux",
+    platform = "linux_x86_64_glibc_2_34",
+    whl_abi_tags = [
+        "abi3",
+        "cp{major}{minor}",
+    ],
+    whl_platform_tags = [
+        "linux_x86_64",
+        "manylinux_2_34_x86_64",
+    ],
+)
+
+pip.default(
+    arch_name = "x86_64",
+    config_settings = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+        "//:abi_musl_1_2",
+    ],
+    os_name = "linux",
+    platform = "linux_x86_64_musl_1_2",
+    whl_abi_tags = [
+        "abi3",
+        "cp{major}{minor}",
+    ],
+    whl_platform_tags = [
+        "musllinux_1_2_x86_64",
+    ],
+)
+
+pip.default(
+    arch_name = "x86_64",
+    config_settings = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+        "//:abi_musl_1_1",
+    ],
+    os_name = "linux",
+    platform = "linux_x86_64_musl_1_1",
+    whl_abi_tags = [
+        "abi3",
+        "cp{major}{minor}",
+    ],
+    whl_platform_tags = [
+        "musllinux_1_1_x86_64",
+    ],
+)
+
+pip.parse(
+    download_only = True,
+    hub_name = "pypi_custom",
+    python_version = "3.12",
+    target_platforms = [
+        "linux_x86_64_glibc_2_17",
+        "linux_x86_64_glibc_2_34",
+        "linux_x86_64_musl_1_2",
+        "linux_x86_64_musl_1_1",
+    ],
+    uv_lock = "//:project/uv.lock",
+)
+
+use_repo(pip, "pypi_custom", "pypi_default")

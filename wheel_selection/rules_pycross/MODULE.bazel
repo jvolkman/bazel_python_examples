@@ -1,0 +1,31 @@
+module(name = "wheel_selection_rules_pycross")
+
+bazel_dep(name = "rules_pycross")
+git_override(
+    module_name = "rules_pycross",
+    commit = "e81bcb316331ab1c3741eefc09c1e09ddf5372b1",
+    remote = "https://github.com/jvolkman/rules_pycross.git",
+)
+bazel_dep(name = "rules_python", version = "2.5.1")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.12",
+)
+
+uv = use_extension("@rules_pycross//pycross/extensions:uv.bzl", "uv")
+uv.workspace(
+    name = "pypi",
+    lock_file = "//:project/uv.lock",
+)
+uv.package(
+    name = "*",
+    build_mode = "never",
+    workspace = "pypi",
+)
+uv.repo(
+    name = "pypi",
+    workspace = "pypi",
+)
+use_repo(uv, "pypi")

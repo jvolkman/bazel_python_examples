@@ -1,0 +1,17 @@
+[project]
+name = "wheel-selection-app"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "bcrypt==5.0.0",
+    "cbor2==6.3.0",
+]
+
+[tool.uv]
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+package = false
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+default = true

@@ -1,0 +1,110 @@
+load("@rules_python//python:py_test.bzl", "py_test")
+load(":transition.bzl", "transitioned_wheel")
+
+exports_files([
+    "project/pyproject.toml",
+    "project/uv.lock",
+])
+
+# 1. Default Linux x86_64: deterministic glibc 2.28 -> cp39-abi3-manylinux_2_28_x86_64
+py_test(
+    name = "bcrypt_default_test",
+    srcs = ["project/src/check_wheel.py"],
+    args = ["dist", "bcrypt", "cp39-abi3-manylinux_2_28_x86_64"],
+    main = "project/src/check_wheel.py",
+    deps = ["@pypi//bcrypt"],
+)
+
+py_test(
+    name = "cbor2_default_test",
+    srcs = ["project/src/check_wheel.py"],
+    args = ["dist", "cbor2", "cp312-cp312-manylinux_2_28_x86_64"],
+    main = "project/src/check_wheel.py",
+    deps = ["@pypi//cbor2"],
+)
+
+# 2. Capped to glibc 2.17: bcrypt downgrades to manylinux_2_17; cbor2 has no 2_17 wheel
+transitioned_wheel(
+    name = "bcrypt_glibc_2_17_whl",
+    glibc_version = "2.17",
+    target = "@pypi//bcrypt:wheel",
+)
+
+py_test(
+    name = "bcrypt_glibc_2_17_test",
+    srcs = ["project/src/check_wheel.py"],
+    args = ["whl", "$(rootpath :bcrypt_glibc_2_17_whl)", "cp39-abi3-manylinux_2_17_x86_64"],
+    data = [":bcrypt_glibc_2_17_whl"],
+    main = "project/src/check_wheel.py",
+)
+
+# Tagged manual: under glibc 2.17 + build_mode="never", cbor2 has no compatible wheel
+# (cbor2 only ships manylinux_2_28), so Bazel marks it incompatible instead of silently
+# shipping a glibc 2.28 binary.
+transitioned_wheel(
+    name = "cbor2_glibc_2_17_whl",
+    glibc_version = "2.17",
+    tags = ["manual"],
+    target = "@pypi//cbor2:wheel",
+)
+
+# 3. Newer glibc 2.34: bcrypt upgrades to manylinux_2_34
+transitioned_wheel(
+    name = "bcrypt_glibc_2_34_whl",
+    glibc_version = "2.34",
+    target = "@pypi//bcrypt:wheel",
+)
+
+py_test(
+    name = "bcrypt_glibc_2_34_test",
+    srcs = ["project/src/check_wheel.py"],
+    args = ["whl", "$(rootpath :bcrypt_glibc_2_34_whl)", "cp39-abi3-manylinux_2_34_x86_64"],
+    data = [":bcrypt_glibc_2_34_whl"],
+    main = "project/src/check_wheel.py",
+)
+
+# 4. Alpine / musl 1.2 (and musl 1.1): zero MODULE.bazel changes
+transitioned_wheel(
+    name = "bcrypt_musl_1_2_whl",
+    libc = "musl",
+    musl_version = "1.2",
+    target = "@pypi//bcrypt:wheel",
+)
+
+py_test(
+    name = "bcrypt_musl_1_2_test",
+    srcs = ["project/src/check_wheel.py"],
+    args = ["whl", "$(rootpath :bcrypt_musl_1_2_whl)", "cp39-abi3-musllinux_1_2_x86_64"],
+    data = [":bcrypt_musl_1_2_whl"],
+    main = "project/src/check_wheel.py",
+)
+
+transitioned_wheel(
+    name = "bcrypt_musl_1_1_whl",
+    libc = "musl",
+    musl_version = "1.1",
+    target = "@pypi//bcrypt:wheel",
+)
+
+py_test(
+    name = "bcrypt_musl_1_1_test",
+    srcs = ["project/src/check_wheel.py"],
+    args = ["whl", "$(rootpath :bcrypt_musl_1_1_whl)", "cp39-abi3-musllinux_1_1_x86_64"],
+    data = [":bcrypt_musl_1_1_whl"],
+    main = "project/src/check_wheel.py",
+)
+
+transitioned_wheel(
+    name = "cbor2_musl_1_2_whl",
+    libc = "musl",
+    musl_version = "1.2",
+    target = "@pypi//cbor2:wheel",
+)
+
+py_test(
+    name = "cbor2_musl_1_2_test",
+    srcs = ["project/src/check_wheel.py"],
+    args = ["whl", "$(rootpath :cbor2_musl_1_2_whl)", "cp312-cp312-musllinux_1_2_x86_64"],
+    data = [":cbor2_musl_1_2_whl"],
+    main = "project/src/check_wheel.py",
+)
