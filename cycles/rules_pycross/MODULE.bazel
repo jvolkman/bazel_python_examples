@@ -1,0 +1,22 @@
+module(name = "cycles_rules_pycross")
+
+bazel_dep(name = "rules_pycross")
+git_override(
+    module_name = "rules_pycross",
+    commit = "bd4800c5abacdfcc2a9053872f82e1bdd19ce22c",
+    remote = "https://github.com/jvolkman/rules_pycross.git",
+)
+bazel_dep(name = "rules_python", version = "2.5.1")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.12",
+)
+
+uv = use_extension("@rules_pycross//pycross/extensions:uv.bzl", "uv")
+uv.workspace(
+    name = "pypi",
+    lock_file = "//:project/uv.lock",
+)
+use_repo(uv, "pypi")

@@ -19,6 +19,9 @@ conflicts/                     # Scenario 1: torch CPU vs CUDA in one lock
 workspaces/                    # Scenario 2: uv workspace with conflicting dependency groups
   project/                     #   shared workspace: root + libs/common, apps/app-a, apps/app-b
   rules_python/  rules_pycross/  rules_py/
+cycles/                        # Scenario 3: cyclic PyPI dependencies (kedro <-> kedro-telemetry)
+  project/                     #   shared pyproject.toml + uv.lock + src/check_cycle.py
+  rules_python/  rules_pycross/  rules_py/
 ```
 
 Each `<scenario>/<ruleset>/` directory is its own Bazel module. It has a `project` symlink to the
@@ -73,25 +76,33 @@ nor to keep a member list by hand.
 | --- | --- | --- | --- |
 | Where hub contents are chosen | Requirements files you export (`uv export --all-packages --no-dev`, `--package app-a --group test`, ...) | `MODULE.bazel`: `uv.repo(projects = ["*"], dependency_groups = ["default"])` | The root pyproject's `[dependency-groups]`. Without any, it uses one implicit group of all `[manifest].members` |
 | All members, no `dev`, no hand-kept list | Yes, via `--all-packages --no-dev` | **Yes, native**: `dev` is just not selected, and the root pyproject is untouched | Only by giving rules_py a Bazel-only stub pyproject with no `[dependency-groups]`, so the real root pyproject is never read |
-| Naive (shared lock + root pyproject) | **Loud** failure: `attempting to override an existing repo ... pytest ...` (it follows every dev-dependency edge, so `dev` would also land in the hub) | **Works** in 2.1.0 (2.0.1 had a bug, see below) | **Loud** failure: `Editable package app_a ... doesn't have a mandatory uv.override_package(target = ...)`. With overrides added, the only group is `dev`, so pydantic is missing |
+| Naive (shared lock + root pyproject) | **Loud** failure: `attempting to override an existing repo ... pytest ...` (it follows every dev-dependency edge, so `dev` would also land in the hub) | **Works** | **Loud** failure: `Editable package app_a ... doesn't have a mandatory uv.override_package(target = ...)`. With overrides added, the only group is `dev`, so pydantic is missing |
 | pytest 7 / 8 split | One hub. Each exported file is bound to a custom `pip.default` platform keyed on a `//:deps` string flag, and each `py_test` sets it with `config_settings` | Per-member test repos (`projects = ["app-a"]`, `group:test;testonly`); each selects its variant automatically with no `flags` | Member groups are ignored, so they are restated as root groups (`app-a-test = ["app-a", "pytest>=7,<8"]`) and picked with `py_pytest_test(dep_group = ...)` |
 | Workspace members | Silently dropped (`-e` lines are ignored; uses `--no-emit-workspace`) | Treated as projects: no targets, no error, member→member deps flattened | Each editable member needs `uv.override_package(target = ...)` |
-| Uses the shared uv.lock as-is | No (exported files) | **Yes** (2.1.0) | Yes, plus two stub pyprojects |
+| Uses the shared uv.lock as-is | No (exported files) | **Yes** | Yes, plus two stub pyprojects |
+
+## Scenario 3: cyclic dependencies (`kedro` ↔ `kedro-telemetry`)
+
+Python package metadata allows dependency cycles, while Bazel's target graph must be a DAG.
+[`cycles/project/`](cycles/project) locks a real PyPI cycle:
+- `kedro==1.8.0` depends on `kedro-telemetry==0.9.0` (plus `dynaconf`, `click`, ...).
+- `kedro-telemetry==0.9.0` depends back on `kedro==1.8.0` (plus `requests`, `appdirs`, ...).
+
+Each module defines `//:kedro_test` (depending only on `kedro`) and `//:telemetry_test` (depending
+only on `kedro_telemetry`), and verifies that both sides of the cycle and their unique transitive
+dependencies (`dynaconf` and `requests`) are importable.
+
+| | rules_python | rules_pycross | rules_py |
+| --- | --- | --- | --- |
+| Detects cycles automatically | No | **Yes** | **Yes** |
+| Naive (point at the shared uv.lock) | **Loud** failure at analysis: `cycle in dependency graph` (`kedro -> kedro_telemetry -> kedro`) | **Works** out of the box | **Works** out of the box |
+| Working setup | Declare every cycle by hand in `pip.parse(experimental_requirement_cycles = {"kedro": ["kedro", "kedro-telemetry"]})` | Shared `uv.lock` unchanged, no extra config | Shared `uv.lock` unchanged, no extra config (`dep_group = "cycle-app"` on tests) |
+| How the cycle is broken | Collapses listed packages into a single group target | Detects SCCs automatically; emits per-member `_raw_*` targets + marker-aware `pycross_cycle_member_marker_deps` wrappers | Detects SCCs automatically; collapses each SCC into a synthetic `//private/sccs:cycle__*` `py_library` |
+| Uses the shared uv.lock as-is | **Yes** | **Yes** | **Yes** |
+| Hand work | Maintain `experimental_requirement_cycles` as lock updates add or merge cycles | None | None |
 
 ## Bugs and limitations found
 
-- **rules_pycross 2.0.1** (both fixed in 2.1.0):
-  - `variant_item_qname()` (`pycross/private/util.bzl`) and `translate_uv` name group or extra
-    variants `group_<name>` / `extra_<name>` and drop the conflict item's `package`. So
-    `{package = "app-a", group = "test"}` and `{package = "app-b", group = "test"}` collide:
-    ``Label '...__pkgs//_lock:group_test' is duplicated in the 'flags' attribute``. This breaks
-    every repo on the workspace.
-  - Member and root pyproject.toml files are resolved relative to the lock file's Bazel
-    *package*, not its directory. With `//:project/uv.lock`, the root pyproject is silently `{}`,
-    and per-member repos fail with `BUILD file not found`.
-  - Details: [workspaces/rules_pycross/README.md](workspaces/rules_pycross/README.md). Both are
-    fixed by [rules_pycross#381](https://github.com/jvolkman/rules_pycross/pull/381), released
-    in 2.1.0. The example now uses the shared workspace lock unchanged.
 - **rules_py 2.0.0-alpha.11:**
   - Conflicts are unsupported: conflict-gated edges are silently dropped
     ([#1510](https://github.com/aspect-build/rules_py/issues/1510)).

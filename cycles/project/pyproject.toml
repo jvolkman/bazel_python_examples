@@ -1,0 +1,14 @@
+[project]
+name = "cycle-app"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "kedro==1.8.0",
+    "kedro-telemetry==0.9.0",
+]
+
+# kedro depends on kedro-telemetry, and kedro-telemetry depends on kedro.
+# Both are listed here so every ruleset exposes both as direct hub targets,
+# letting us test depending on each side of the cycle independently.
+[tool.uv]
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]

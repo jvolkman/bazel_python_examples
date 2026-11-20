@@ -1,0 +1,35 @@
+module(name = "cycles_rules_python")
+
+bazel_dep(name = "rules_python", version = "2.5.1")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.12",
+)
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+
+# Working setup: manually declare the cycle with experimental_requirement_cycles
+# so rules_python collapses kedro and kedro-telemetry into one group target.
+# Note: hub name avoids reserved "pypi" warning.
+pip.parse(
+    experimental_requirement_cycles = {
+        "kedro": [
+            "kedro",
+            "kedro-telemetry",
+        ],
+    },
+    hub_name = "pypi_cycles",
+    python_version = "3.12",
+    uv_lock = "//:project/uv.lock",
+)
+
+# Naive setup: pointing pip.parse(uv_lock = ...) at the lock without declaring
+# the cycle fails analysis with "cycle in dependency graph" (see //naive:...).
+pip.parse(
+    hub_name = "pypi_naive",
+    python_version = "3.12",
+    uv_lock = "//:project/uv.lock",
+)
+use_repo(pip, "pypi_cycles", "pypi_naive")

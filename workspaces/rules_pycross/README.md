@@ -6,12 +6,6 @@ pytest 7 and pytest 8+), with [rules_pycross](https://github.com/jvolkman/rules_
 `main` (`bd4800c5`) and rules_python 2.5.1 (toolchain and `py_library`/`py_test`), Bazel 9.3.2,
 Python 3.12.
 
-> [!NOTE]
-> rules_pycross 2.0.1 couldn't use this lock as-is. Both `test` groups mapped to the same variant
-> flag, and member `pyproject.toml` files had to sit in Bazel packages. 2.1.0 fixes both
-> ([rules_pycross#381](https://github.com/jvolkman/rules_pycross/pull/381)), so this module uses
-> the shared lock unchanged. See [Before 2.1.0](#before-210).
-
 ## Setup
 
 rules_pycross picks the hub's contents in MODULE.bazel, not from the root
@@ -138,32 +132,6 @@ per-member repo `uv.repo(projects = ["app-a"])` contains `pydantic` and `request
   variants group_app-a_test and group_app-b_test").
 - `group:*` doesn't help. It would select both conflicting test groups *and* the root `dev`
   group.
-
-## Before 2.1.0
-
-With rules_pycross 2.0.1, pointing the extension at the shared lock failed in two ways. Both are
-fixed in 2.1.0 by [rules_pycross#381](https://github.com/jvolkman/rules_pycross/pull/381).
-
-1. **Same-named groups of different members collided.** Variant names were built from `kind` and
-   `name` only, so `{package = "app-a", group = "test"}` and `{package = "app-b", group = "test"}`
-   both became `group_test`. Every target that touched the workspace failed at analysis:
-
-   ```
-   ERROR: .../external/rules_pycross++uv+mono__pkgs/_lock/BUILD.bazel:17:17: Label
-     '@@rules_pycross++uv+mono__pkgs//_lock:group_test' is duplicated in the 'flags' attribute of rule
-     '_resolver_group_test_group_test'
-   ```
-
-   In 2.1.0, each repo gets its own flags. `group_test` enables the `test` group of each of the
-   repo's projects, and `group_<project>_test` enables one.
-
-2. **Member `pyproject.toml` files were looked up as Bazel packages.** With
-   `//:project/uv.lock`, member `apps/app-a` resolved to `//apps/app-a:pyproject.toml`, so
-   per-member repos failed with `BUILD file not found`. The root `pyproject.toml` was silently
-   read as empty. In 2.1.0, paths are relative to the lock file's directory.
-
-The workaround on 2.0.1 was a relocked copy of the project with the groups renamed `test-a` and
-`test-b`, plus BUILD files in each member directory.
 
 ## Friction / limitations
 
