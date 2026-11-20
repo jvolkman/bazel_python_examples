@@ -8,12 +8,14 @@ This module builds the two sdist-only C extensions in [`project/`](../project) (
 
 rules_py compiles sdists hermetically in sandboxed Bazel build actions (`pep517_native_whl`,
 auto-detected by its `detect_native.py` configure tool) using Bazel's CC toolchain. However, it
-has no separate `build_tools_repo` mechanism: every build dependency, including the PyPA `build`
-frontend itself (`default_build_dependencies = ["build"]`) plus `setuptools`, `wheel`, and `cython`,
-must be locked inside the same `uv.lock` and exposed in the same `dep_group` as the runtime
-packages.
+has no separate `build_tools_repo` or override lock mechanism: every build dependency (`build`,
+`setuptools`, `wheel`, and `cython`) must be locked inside the same `uv.lock`. Auto-discovered
+build requirements from `detect_native.py` (`setuptools`, `wheel`, `cython`) resolve from an
+internal `private/build_deps` graph independent of `dep_group`, whereas
+`default_build_dependencies` (which defaults to `["build"]`) and `uv.annotate_packages` resolve
+through surface aliases that must be active in the consuming `dep_group`.
 
-To make `bazel test //...` pass, [`bazel_project/pyproject.toml`](bazel_project/pyproject.toml)
+Following rules_py's own sdist e2e tests, [`bazel_project/pyproject.toml`](bazel_project/pyproject.toml)
 copies `project/pyproject.toml`, adds `build`, `setuptools`, `wheel`, and `cython` to
 `[project].dependencies`, and relocks [`bazel_project/uv.lock`](bazel_project/uv.lock).
 
@@ -86,12 +88,13 @@ Conditions checked:
 
 ## Friction / limitations
 
-- **Cannot use `project/uv.lock` unmodified.** rules_py has no separate build-tools lock/repo; you
-  must lock `build`, `setuptools`, `wheel`, and `cython` in the same lockfile.
-- **Build tools must share the runtime `dep_group`.** Putting build tools in their own
-  `[dependency-groups]` group makes `//:build` unreachable when building under the app's
-  `dep_group`, forcing build tools into `[project].dependencies` (or into every `dep_group` that
-  consumes an sdist).
+- **Cannot use `project/uv.lock` unmodified.** rules_py has no separate build-tools lock or repo;
+  you must lock `build`, `setuptools`, `wheel`, and `cython` in the same lockfile.
+- **`default_build_dependencies` (including `build`) must share the runtime `dep_group`.**
+  Auto-discovered backends (`setuptools`, `wheel`, `cython`) resolve from `private/build_deps`
+  regardless of `dep_group`, but `//:build` (and any `default_build_dependencies` or
+  `uv.annotate_packages` build deps) select on the active `dep_group`. Putting `build` only in a
+  separate `[dependency-groups]` group makes `//:build` unreachable under the app's `dep_group`.
 - **Sdist compilation itself works well once dependencies are locked.** `detect_native.py`
   automatically detected native sources in both `crcmod` and `datrie` (including `datrie`'s
   `build_clib` static library and Cython dependency) and compiled both hermetically with Bazel's

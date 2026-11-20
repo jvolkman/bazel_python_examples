@@ -38,7 +38,7 @@ In rules_py 2.0.0-alpha.11:
 - `[tool.uv] conflicts` is unsupported, so conflict-gated edges are dropped without error ([#1510](https://github.com/aspect-build/rules_py/issues/1510)).
 - Generated `project__<[project].name>` repositories are global to the extension. Two `uv.project()` calls on different hubs with the same `[project].name` overwrite each other (related: [#1093](https://github.com/aspect-build/rules_py/issues/1093)).
 - Hub labels are incompatible outside a selected `dep_group`, so `bazel build //...` skips libraries unless `.bazelrc` sets a default.
-- Sdist builds require `build` and all PEP 517 build backends (`setuptools`, `wheel`, `cython`) to be locked in the same `uv.lock` and reachable in the same `dep_group` as the runtime packages; there is no separate build-tools repo.
+- Sdist builds require `build` and all PEP 517 build backends (`setuptools`, `wheel`, `cython`) to be locked in the same `uv.lock` (there is no separate build-tools repo). Auto-discovered `[build-system].requires` packages resolve from `private/build_deps` regardless of `dep_group`, but `default_build_dependencies` (including `build` itself) and `uv.annotate_packages` build dependencies still resolve through surface aliases and must be active in the consuming `dep_group`.
 - Wheel selection defaults `platform_version` from a host glibc probe (`@rules_py_uv_host`), so different Linux hosts silently pick different `manylinux` wheels unless the private `@rules_py//uv/private/constraints/platform:platform_version` flag is pinned.
 
 In rules_python 2.5.1:
