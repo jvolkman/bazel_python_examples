@@ -8,7 +8,8 @@ Side-by-side examples of how three Bazel Python rulesets handle the same uv lock
 | [rules_pycross](https://github.com/jvolkman/rules_pycross) | `main` (`bd4800c5`) | rules_python's `py_library` / `py_test` |
 | [rules_py](https://github.com/aspect-build/rules_py) | 2.0.0-alpha.11 (BCR module `rules_py`) | its own `py_library` / `py_test` / `py_pytest_test` |
 
-All modules use Bazel 9.3.2 and Python 3.12. The locks are restricted to Linux x86_64.
+All modules use Bazel 9.3.2 on Linux x86_64. `conflicts/` and `workspaces/` use Python 3.12;
+`cycles/` uses Python 3.14 to exercise Airflow's `python_version != "3.14"` cycle edge.
 
 ## Layout
 
@@ -19,7 +20,7 @@ conflicts/                     # Scenario 1: torch CPU vs CUDA in one lock
 workspaces/                    # Scenario 2: uv workspace with conflicting dependency groups
   project/                     #   shared workspace: root + libs/common, apps/app-a, apps/app-b
   rules_python/  rules_pycross/  rules_py/
-cycles/                        # Scenario 3: marker-gated cyclic dependencies (unishell)
+cycles/                        # Scenario 3: marker-gated cyclic dependencies (Apache Airflow)
   project/                     #   shared pyproject.toml + uv.lock + src/check_cycle.py
   rules_python/  rules_pycross/  rules_py/
 ```
@@ -81,33 +82,40 @@ nor to keep a member list by hand.
 | Workspace members | Silently dropped (`-e` lines are ignored; uses `--no-emit-workspace`) | Treated as projects: no targets, no error, member→member deps flattened | Each editable member needs `uv.override_package(target = ...)` |
 | Uses the shared uv.lock as-is | No (exported files) | **Yes** | Yes, plus two stub pyprojects |
 
-## Scenario 3: marker-gated cyclic dependencies (`unishell`)
+## Scenario 3: marker-gated cyclic dependencies (Apache Airflow)
 
 Python package metadata allows dependency cycles, while Bazel's target graph must be a DAG.
-[`cycles/project/`](cycles/project) locks a real cross-platform PyPI cycle:
-- `unishell==2.3.3` depends on `unishell-unix==2.2.4` on Linux/macOS (`sys_platform == 'darwin' or sys_platform == 'linux'`) and on `unishell-win==2.3.3` on Windows (`sys_platform == 'win32'`).
-- Both `unishell-unix` and `unishell-win` depend back on `unishell` unconditionally.
+[`cycles/project/`](cycles/project) locks `apache-airflow[apache-tinkerpop]==3.4.0` and
+`apache-airflow-providers-apache-tinkerpop==1.2.2`:
+- `apache-airflow==3.4.0` has an **8-package overlapping base cycle** (`apache-airflow`,
+  `apache-airflow-core`, `apache-airflow-task-sdk`, and 5 default providers).
+- Its `apache-tinkerpop` extra adds a 9th cycle member
+  (`apache-airflow-providers-apache-tinkerpop==1.2.2`, which depends on `gremlinpython`) gated on
+  `python_full_version < '3.14'`, while `tinkerpop` depends back on `apache-airflow` unconditionally.
 
-On Linux, each module tests three entry points:
-- `//:unishell_test` (`deps = ["unishell"]`) and `//:unishell_unix_test` (`deps = ["unishell_unix"]`) must see `unishell` and `unishell_unix`, and must **not** pull in `unishell_win`.
-- `//:unishell_win_test` (`deps = ["unishell_win"]`) depends directly on `unishell_win` and must see all three.
+On Python 3.14, each module tests two entry points:
+- `//:airflow_test` (`deps = ["apache_airflow"]`) must see `airflow` and
+  `airflow.providers.standard`, and must **not** pull in `tinkerpop` or `gremlin_python`.
+- `//:tinkerpop_test` (`deps = ["apache_airflow_providers_apache_tinkerpop"]`) depends directly on
+  `tinkerpop` and must see `tinkerpop`, `gremlin_python`, `airflow`, and `standard`.
 
 | | rules_python | rules_pycross | rules_py |
 | --- | --- | --- | --- |
 | Detects cycles automatically | No | **Yes** | **Yes** |
-| Naive (point at the shared uv.lock) | **Loud** failure at analysis: `cycle in dependency graph` (`unishell -> unishell_unix -> unishell`) | **Works** out of the box (all 3 tests pass) | Builds, but **silently wrong**: `//:unishell_win_test` fails at runtime (`unishell_win` missing despite being a direct dep) |
-| Working setup | Declare the Linux-only cycle `["unishell", "unishell-unix"]` in `experimental_requirement_cycles` (breaks Windows). Declaring all three over-includes `unishell_win` on Linux | Shared `uv.lock` unchanged, no extra config | Only `//:unishell_test` and `//:unishell_unix_test` pass; no `MODULE.bazel` workaround keeps `//:unishell_win_test` working on Linux without editing `uv.lock` |
-| How the cycle is broken | Collapses listed packages into a single group target statically (marker-unaware) | Detects SCCs automatically; per-member `_raw_*` targets + marker-aware `pycross_cycle_member_marker_deps` reachability | Detects SCCs ignoring markers; collapses all 3 into one `py_library` and gates each member on its inbound intra-SCC edge markers |
-| Uses the shared uv.lock as-is | **Yes** | **Yes** | **Yes** (with `unishell_win_test` broken) |
-| Hand work | Maintain `experimental_requirement_cycles` by hand; pick between breaking Windows or over-including `unishell_win` on Linux | None | None for active edges; broken for inactive-marker direct entries |
+| Naive (point at the shared uv.lock) | **Loud** failure at analysis: `cycle in dependency graph` across Airflow's 8 overlapping cycle packages | **Works** out of the box (both tests pass) | Builds, but **both tests fail**: `//:airflow_test` over-includes `gremlin_python`, and `//:tinkerpop_test` silently drops `tinkerpop` itself (while keeping `gremlin_python`) |
+| Working setup | Manually list all 8 base Airflow packages in `experimental_requirement_cycles` (breaks Python 3.12/3.13). Listing all 9 over-includes `tinkerpop` and `gremlin_python` on 3.14 | Shared `uv.lock` unchanged, no extra config | Only `//:airflow_imports_test` passes; no `MODULE.bazel` workaround fixes `//:airflow_test` or `//:tinkerpop_test` on Python 3.14 without editing `uv.lock` |
+| How the cycle is broken | Collapses listed packages into a single group target statically (marker-unaware) | Detects SCCs automatically; per-member `_raw_*` targets + marker-aware `pycross_cycle_member_marker_deps` reachability | Detects SCCs ignoring markers; collapses all 9 into one `py_library`, unions all external deps, and gates each member on its inbound intra-SCC edge markers |
+| Uses the shared uv.lock as-is | **Yes** | **Yes** | **Yes** (with both strict tests failing) |
+| Hand work | Discover and merge all 8 (or 9) Airflow packages in `experimental_requirement_cycles`; pick between breaking Python 3.12/3.13 or over-including `tinkerpop` + `gremlin_python` on 3.14 | None | None for basic imports; broken for marker-gated SCC precision |
 
 ## Bugs and limitations found
 
 - **rules_py 2.0.0-alpha.11:**
-  - Marker-gated cycles silently drop direct dependencies: `collect_sccs` gates each SCC member on
-    the union of its inbound intra-SCC edge markers, so a member whose inbound cycle edges are
-    inactive on the current platform (like `unishell-win` on Linux) is replaced with `:empty` even
-    when depended on directly.
+  - Marker-gated cycles both **over-include** and **under-include**: `collect_sccs` collapses all
+    members into one `py_library`, unions every member's external deps (leaking `gremlin_python`
+    into `@pypi//apache_airflow` on Python 3.14), and gates each member's wheel on the union of its
+    inbound intra-SCC edge markers (silently replacing `@pypi//apache_airflow_providers_apache_tinkerpop`
+    itself with `:empty` on Python 3.14 even when depended on directly).
   - Conflicts are unsupported: conflict-gated edges are silently dropped
     ([#1510](https://github.com/aspect-build/rules_py/issues/1510)).
   - `project__<[project].name>` repos are global to the extension, so `uv.project`s on different

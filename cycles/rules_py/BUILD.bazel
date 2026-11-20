@@ -2,38 +2,42 @@ load("@rules_py//py:defs.bzl", "py_test")
 
 exports_files(glob(["project/**"]))
 
-# unishell <-> unishell-unix is active on Linux/macOS; unishell <-> unishell-win
-# is gated on sys_platform == 'win32'.
-
+# Sanity test that passes in `bazel test //...`: checks only that airflow and
+# airflow.providers.standard import, ignoring leaked extra packages.
 py_test(
-    name = "unishell_test",
+    name = "airflow_imports_test",
     srcs = ["project/src/check_cycle.py"],
-    args = ["unishell"],
+    args = ["airflow_imports"],
     dep_group = "cycle-app",
     main = "project/src/check_cycle.py",
-    deps = ["@pypi//unishell"],
+    deps = ["@pypi//apache_airflow"],
 )
 
+# Reproduces rules_py collect_sccs over-inclusion: tagged manual so
+# `bazel test //...` passes. Even though apache-airflow-providers-apache-tinkerpop
+# is inactive on Python 3.14, rules_py unions its external dependencies into the
+# shared SCC py_library, leaking gremlin_python into @pypi//apache_airflow.
 py_test(
-    name = "unishell_unix_test",
+    name = "airflow_test",
     srcs = ["project/src/check_cycle.py"],
-    args = ["unishell_unix"],
-    dep_group = "cycle-app",
-    main = "project/src/check_cycle.py",
-    deps = ["@pypi//unishell_unix"],
-)
-
-# Reproduces the rules_py collect_sccs bug: tagged manual so `bazel test //...`
-# passes. Even though @pypi//unishell_win is a direct dep, rules_py collapses
-# {unishell, unishell-unix, unishell-win} into one SCC and gates unishell-win on
-# its inbound intra-SCC edge marker (sys_platform == 'win32'), silently dropping
-# unishell_win itself on Linux.
-py_test(
-    name = "unishell_win_test",
-    srcs = ["project/src/check_cycle.py"],
-    args = ["unishell_win"],
+    args = ["airflow"],
     dep_group = "cycle-app",
     main = "project/src/check_cycle.py",
     tags = ["manual"],
-    deps = ["@pypi//unishell_win"],
+    deps = ["@pypi//apache_airflow"],
+)
+
+# Reproduces rules_py collect_sccs under-inclusion: tagged manual so
+# `bazel test //...` passes. Even though @pypi//apache_airflow_providers_apache_tinkerpop
+# is a direct dep, rules_py gates its wheel inside the shared SCC on its inbound
+# intra-SCC edge marker (`python_full_version < '3.14'`), replacing tinkerpop
+# itself with :empty on Python 3.14 (while still leaving gremlin_python behind!).
+py_test(
+    name = "tinkerpop_test",
+    srcs = ["project/src/check_cycle.py"],
+    args = ["tinkerpop"],
+    dep_group = "cycle-app",
+    main = "project/src/check_cycle.py",
+    tags = ["manual"],
+    deps = ["@pypi//apache_airflow_providers_apache_tinkerpop"],
 )

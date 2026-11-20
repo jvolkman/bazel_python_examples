@@ -1,30 +1,23 @@
 load("@rules_python//python:defs.bzl", "py_test")
 
-# unishell <-> unishell-unix is active on Linux/macOS; unishell <-> unishell-win
-# is gated on sys_platform == 'win32'. Depending on unishell or unishell_unix on
-# Linux must include both without pulling in unishell_win; depending directly on
-# unishell_win must include unishell_win along with unishell and unishell_unix.
+# apache-airflow==3.4.0 has an 8-package base cycle, plus apache-tinkerpop as
+# a 9th member gated on `python_version != "3.14"`. On Python 3.14, depending on
+# apache_airflow must pull in the active 8-package cycle without tinkerpop or
+# gremlin_python; depending directly on apache_airflow_providers_apache_tinkerpop
+# must keep tinkerpop, gremlin_python, and airflow.
 
 py_test(
-    name = "unishell_test",
+    name = "airflow_test",
     srcs = ["project/src/check_cycle.py"],
-    args = ["unishell"],
+    args = ["airflow"],
     main = "project/src/check_cycle.py",
-    deps = ["@pypi//unishell"],
+    deps = ["@pypi//apache_airflow"],
 )
 
 py_test(
-    name = "unishell_unix_test",
+    name = "tinkerpop_test",
     srcs = ["project/src/check_cycle.py"],
-    args = ["unishell_unix"],
+    args = ["tinkerpop"],
     main = "project/src/check_cycle.py",
-    deps = ["@pypi//unishell_unix"],
-)
-
-py_test(
-    name = "unishell_win_test",
-    srcs = ["project/src/check_cycle.py"],
-    args = ["unishell_win"],
-    main = "project/src/check_cycle.py",
-    deps = ["@pypi//unishell_win"],
+    deps = ["@pypi//apache_airflow_providers_apache_tinkerpop"],
 )

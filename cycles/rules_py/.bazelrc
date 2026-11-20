@@ -1,2 +1,2 @@
-common --@rules_py//py:python_version=3.12
+common --@rules_py//py:python_version=3.14
 test --test_output=errors

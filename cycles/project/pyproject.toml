@@ -1,17 +1,20 @@
 [project]
 name = "cycle-app"
 version = "0.1.0"
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.12,<3.15"
 dependencies = [
-    "unishell==2.3.3",
-    "unishell-unix==2.2.4",
-    "unishell-win==2.3.3",
+    "apache-airflow[apache-tinkerpop]==3.4.0",
+    "apache-airflow-providers-apache-tinkerpop==1.2.2",
 ]
 
-# unishell depends on unishell-unix on Linux/macOS and on unishell-win on
-# Windows; both platform packages depend back on unishell unconditionally.
-# No [tool.uv] environments filter is set so the cross-platform win32 edge
-# stays in uv.lock, exposing how each ruleset handles marker-gated cycles.
+# apache-airflow==3.4.0 has an 8-package base cycle (apache-airflow,
+# apache-airflow-core, apache-airflow-task-sdk, and 5 default providers).
+# The apache-tinkerpop extra adds a 9th cycle member gated on
+# `python_version != "3.14"`, while tinkerpop depends back on apache-airflow
+# unconditionally and pulls in gremlinpython.
+[tool.uv]
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+
 [[tool.uv.index]]
 name = "pypi"
 url = "https://pypi.org/simple"

@@ -1,0 +1,14 @@
+load("@rules_python//python:defs.bzl", "py_test")
+
+# Multi-version experimental_requirement_cycles includes tinkerpop so Python
+# 3.12/3.13 builds don't fail analysis, but collapses all 9 packages into one
+# group target and over-includes tinkerpop and gremlin_python on Python 3.14.
+# Tagged manual so `bazel test //...` passes.
+py_test(
+    name = "airflow_test",
+    srcs = ["//:project/src/check_cycle.py"],
+    args = ["airflow"],
+    main = "//:project/src/check_cycle.py",
+    tags = ["manual"],
+    deps = ["@pypi_all_versions//apache_airflow"],
+)

@@ -3,25 +3,17 @@ load("@rules_python//python:defs.bzl", "py_test")
 exports_files(["project/src/check_cycle.py"])
 
 py_test(
-    name = "unishell_test",
+    name = "airflow_test",
     srcs = ["project/src/check_cycle.py"],
-    args = ["unishell"],
+    args = ["airflow"],
     main = "project/src/check_cycle.py",
-    deps = ["@pypi_cycles//unishell"],
+    deps = ["@pypi_cycles//apache_airflow"],
 )
 
 py_test(
-    name = "unishell_unix_test",
+    name = "tinkerpop_test",
     srcs = ["project/src/check_cycle.py"],
-    args = ["unishell_unix"],
+    args = ["tinkerpop"],
     main = "project/src/check_cycle.py",
-    deps = ["@pypi_cycles//unishell_unix"],
-)
-
-py_test(
-    name = "unishell_win_test",
-    srcs = ["project/src/check_cycle.py"],
-    args = ["unishell_win"],
-    main = "project/src/check_cycle.py",
-    deps = ["@pypi_cycles//unishell_win"],
+    deps = ["@pypi_cycles//apache_airflow_providers_apache_tinkerpop"],
 )

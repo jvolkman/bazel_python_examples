@@ -1,17 +1,19 @@
 # Dependency cycles: rules_python 2.5.1
 
-The shared project ([`project/`](../project)) locks `unishell==2.3.3`, `unishell-unix==2.2.4`,
-and `unishell-win==2.3.3`.
+The shared project ([`project/`](../project)) locks `apache-airflow[apache-tinkerpop]==3.4.0` and
+`apache-airflow-providers-apache-tinkerpop==1.2.2`.
 
-- `unishell` depends on `unishell-unix` on Linux/macOS (`sys_platform == 'darwin' or sys_platform == 'linux'`)
-  and on `unishell-win` on Windows (`sys_platform == 'win32'`).
-- Both `unishell-unix` and `unishell-win` depend back on `unishell` unconditionally.
+- `apache-airflow==3.4.0` has an 8-package overlapping base cycle (`apache-airflow`,
+  `apache-airflow-core`, `apache-airflow-task-sdk`, and 5 default providers).
+- Its `apache-tinkerpop` extra adds a 9th cycle member
+  (`apache-airflow-providers-apache-tinkerpop==1.2.2`, which depends on `gremlinpython`) gated on
+  `python_full_version < '3.14'`, while `tinkerpop` depends back on `apache-airflow` unconditionally.
 
-**Summary:** `pip.parse(uv_lock = ...)` reads the shared `uv.lock`, but fails at analysis with
-`cycle in dependency graph` unless cycles are listed by hand in `experimental_requirement_cycles`.
-For a cross-platform cycle like `unishell`, listing all three packages causes Linux targets to
-over-include `unishell_win`, while listing only `["unishell", "unishell-unix"]` passes on Linux
-but leaves the Windows cycle broken.
+**Summary:** `pip.parse(uv_lock = ...)` reads the shared `uv.lock`, but fails analysis with
+`cycle in dependency graph` until you manually discover and merge all 8 overlapping Airflow cycle
+packages into one `experimental_requirement_cycles` entry. Including the 9th (`tinkerpop`) for
+Python 3.12/3.13 support over-includes `tinkerpop` and `gremlin_python` on Python 3.14; omitting it
+passes on 3.14 but breaks Python 3.12/3.13.
 
 ## Setup
 
@@ -21,18 +23,24 @@ but leaves the Windows cycle broken.
 bazel_dep(name = "rules_python", version = "2.5.1")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
-python.toolchain(is_default = True, python_version = "3.12")
+python.toolchain(is_default = True, python_version = "3.14")
 
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 pip.parse(
     experimental_requirement_cycles = {
-        "unishell": [
-            "unishell",
-            "unishell-unix",
+        "airflow": [
+            "apache-airflow",
+            "apache-airflow-core",
+            "apache-airflow-task-sdk",
+            "apache-airflow-providers-common-compat",
+            "apache-airflow-providers-common-io",
+            "apache-airflow-providers-common-sql",
+            "apache-airflow-providers-smtp",
+            "apache-airflow-providers-standard",
         ],
     },
     hub_name = "pypi_cycles",
-    python_version = "3.12",
+    python_version = "3.14",
     uv_lock = "//:project/uv.lock",
 )
 use_repo(pip, "pypi_cycles")
@@ -40,43 +48,41 @@ use_repo(pip, "pypi_cycles")
 
 `MODULE.bazel` also defines:
 - `@pypi_naive` (no `experimental_requirement_cycles`) for [`naive/BUILD.bazel`](naive/BUILD.bazel).
-- `@pypi_cross_platform` (`["unishell", "unishell-unix", "unishell-win"]`) for
-  [`cross_platform/BUILD.bazel`](cross_platform/BUILD.bazel).
+- `@pypi_all_versions` (all 9 packages, including `apache-airflow-providers-apache-tinkerpop`) for
+  [`all_versions/BUILD.bazel`](all_versions/BUILD.bazel).
 
 Run:
 
 ```sh
-bazel test //...                            # passes on Linux (only Unix cycle declared)
-bazel build //naive:unishell_test           # reproduces the analysis cycle error
-bazel test //cross_platform:unishell_test   # reproduces unishell_win over-inclusion on Linux
+bazel test //...                           # passes on Python 3.14 (8-package cycle list)
+bazel build //naive:airflow_test           # reproduces the analysis cycle error
+bazel test //all_versions:airflow_test     # reproduces tinkerpop + gremlin over-inclusion on 3.14
 ```
 
 ## Result
 
 | Command | Target | Status | Observed |
 | --- | --- | --- | --- |
-| `bazel test //...` | `//:unishell_test` | pass | `unishell=True unishell_unix=True unishell_win=False` |
-| `bazel test //...` | `//:unishell_unix_test` | pass | `unishell=True unishell_unix=True unishell_win=False` |
-| `bazel test //...` | `//:unishell_win_test` | pass | `unishell=True unishell_unix=True unishell_win=True` |
-| `bazel build //naive:unishell_test` | `//naive:unishell_test` | analysis error | `cycle in dependency graph` (`unishell -> unishell_unix -> unishell`) |
-| `bazel test //cross_platform:unishell_test` | `//cross_platform:unishell_test` | **fail** | `unishell=True unishell_unix=True unishell_win=True` (`AssertionError: unexpected unishell_win on Linux`) |
+| `bazel test //...` | `//:airflow_test` | pass | `airflow=True standard=True tinkerpop=False gremlin=False` |
+| `bazel test //...` | `//:tinkerpop_test` | pass | `airflow=True standard=True tinkerpop=True gremlin=True` |
+| `bazel build //naive:airflow_test` | `//naive:airflow_test` | analysis error | `cycle in dependency graph` |
+| `bazel test //all_versions:airflow_test` | `//all_versions:airflow_test` | **fail** | `airflow=True standard=True tinkerpop=True gremlin=True` (`AssertionError: unexpected tinkerpop on Python 3.14`) |
 
-## What happened with the naive and cross-platform setups
+## What happened with the naive and multi-version setups
 
-1. **Naive (`@pypi_naive`):** fails during analysis with `cycle in dependency graph` on
-   `unishell -> unishell_unix -> unishell`.
-2. **Cross-platform (`@pypi_cross_platform`):** declaring all three packages in
-   `experimental_requirement_cycles` avoids a cycle error on both Linux and Windows, but collapses
-   all three into one group target unconditionally — so `//cross_platform:unishell_test` pulls
-   `unishell_win` into Linux builds even though `unishell` only depends on it under
-   `sys_platform == 'win32'`.
+1. **Naive (`@pypi_naive`):** fails during analysis with `cycle in dependency graph` across
+   Airflow's overlapping provider cycles.
+2. **Multi-version (`@pypi_all_versions`):** listing all 9 packages in
+   `experimental_requirement_cycles` keeps Python 3.12, 3.13, and 3.14 building, but collapses all
+   9 into one static group target — so `//all_versions:airflow_test` pulls both `tinkerpop` and
+   `gremlin_python` into Python 3.14 targets even though the `apache-tinkerpop` extra is gated on
+   `python_full_version < '3.14'`.
 
 ## Friction / limitations
 
-- **Cycles must be listed by hand.** Whenever a lock update introduces a new cycle (or adds a
-  package to an existing one), builds fail until `experimental_requirement_cycles` is updated.
+- **Overlapping cycles must be discovered and merged by hand.** Airflow has 8 interacting packages
+  across 6 cycles; `experimental_requirement_cycles` requires listing all of them in a single
+  merged group and updating that list whenever Airflow changes its default providers.
 - **No marker-aware cycles.** `experimental_requirement_cycles` is a static list, so a
-  cross-platform cycle forces a tradeoff: omit the Windows package (breaks Windows builds) or
-  include it (over-includes it on Linux/macOS).
-- **Overlapping cycles must be merged manually.** If `a <-> b` and `a <-> c` both exist, they must
-  be collapsed into a single entry by hand.
+  Python-version-gated cycle forces a tradeoff: omit `tinkerpop` (breaks Python 3.12/3.13) or
+  include it (over-includes `tinkerpop` and `gremlin_python` on Python 3.14).
