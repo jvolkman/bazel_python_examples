@@ -3,12 +3,16 @@ name = "cycle-app"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "kedro==1.8.0",
-    "kedro-telemetry==0.9.0",
+    "unishell==2.3.3",
+    "unishell-unix==2.2.4",
+    "unishell-win==2.3.3",
 ]
 
-# kedro depends on kedro-telemetry, and kedro-telemetry depends on kedro.
-# Both are listed here so every ruleset exposes both as direct hub targets,
-# letting us test depending on each side of the cycle independently.
-[tool.uv]
-environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+# unishell depends on unishell-unix on Linux/macOS and on unishell-win on
+# Windows; both platform packages depend back on unishell unconditionally.
+# No [tool.uv] environments filter is set so the cross-platform win32 edge
+# stays in uv.lock, exposing how each ruleset handles marker-gated cycles.
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+default = true

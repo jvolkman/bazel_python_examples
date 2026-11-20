@@ -19,7 +19,7 @@ conflicts/                     # Scenario 1: torch CPU vs CUDA in one lock
 workspaces/                    # Scenario 2: uv workspace with conflicting dependency groups
   project/                     #   shared workspace: root + libs/common, apps/app-a, apps/app-b
   rules_python/  rules_pycross/  rules_py/
-cycles/                        # Scenario 3: cyclic PyPI dependencies (kedro <-> kedro-telemetry)
+cycles/                        # Scenario 3: marker-gated cyclic dependencies (unishell)
   project/                     #   shared pyproject.toml + uv.lock + src/check_cycle.py
   rules_python/  rules_pycross/  rules_py/
 ```
@@ -81,29 +81,33 @@ nor to keep a member list by hand.
 | Workspace members | Silently dropped (`-e` lines are ignored; uses `--no-emit-workspace`) | Treated as projects: no targets, no error, member→member deps flattened | Each editable member needs `uv.override_package(target = ...)` |
 | Uses the shared uv.lock as-is | No (exported files) | **Yes** | Yes, plus two stub pyprojects |
 
-## Scenario 3: cyclic dependencies (`kedro` ↔ `kedro-telemetry`)
+## Scenario 3: marker-gated cyclic dependencies (`unishell`)
 
 Python package metadata allows dependency cycles, while Bazel's target graph must be a DAG.
-[`cycles/project/`](cycles/project) locks a real PyPI cycle:
-- `kedro==1.8.0` depends on `kedro-telemetry==0.9.0` (plus `dynaconf`, `click`, ...).
-- `kedro-telemetry==0.9.0` depends back on `kedro==1.8.0` (plus `requests`, `appdirs`, ...).
+[`cycles/project/`](cycles/project) locks a real cross-platform PyPI cycle:
+- `unishell==2.3.3` depends on `unishell-unix==2.2.4` on Linux/macOS (`sys_platform == 'darwin' or sys_platform == 'linux'`) and on `unishell-win==2.3.3` on Windows (`sys_platform == 'win32'`).
+- Both `unishell-unix` and `unishell-win` depend back on `unishell` unconditionally.
 
-Each module defines `//:kedro_test` (depending only on `kedro`) and `//:telemetry_test` (depending
-only on `kedro_telemetry`), and verifies that both sides of the cycle and their unique transitive
-dependencies (`dynaconf` and `requests`) are importable.
+On Linux, each module tests three entry points:
+- `//:unishell_test` (`deps = ["unishell"]`) and `//:unishell_unix_test` (`deps = ["unishell_unix"]`) must see `unishell` and `unishell_unix`, and must **not** pull in `unishell_win`.
+- `//:unishell_win_test` (`deps = ["unishell_win"]`) depends directly on `unishell_win` and must see all three.
 
 | | rules_python | rules_pycross | rules_py |
 | --- | --- | --- | --- |
 | Detects cycles automatically | No | **Yes** | **Yes** |
-| Naive (point at the shared uv.lock) | **Loud** failure at analysis: `cycle in dependency graph` (`kedro -> kedro_telemetry -> kedro`) | **Works** out of the box | **Works** out of the box |
-| Working setup | Declare every cycle by hand in `pip.parse(experimental_requirement_cycles = {"kedro": ["kedro", "kedro-telemetry"]})` | Shared `uv.lock` unchanged, no extra config | Shared `uv.lock` unchanged, no extra config (`dep_group = "cycle-app"` on tests) |
-| How the cycle is broken | Collapses listed packages into a single group target | Detects SCCs automatically; emits per-member `_raw_*` targets + marker-aware `pycross_cycle_member_marker_deps` wrappers | Detects SCCs automatically; collapses each SCC into a synthetic `//private/sccs:cycle__*` `py_library` |
-| Uses the shared uv.lock as-is | **Yes** | **Yes** | **Yes** |
-| Hand work | Maintain `experimental_requirement_cycles` as lock updates add or merge cycles | None | None |
+| Naive (point at the shared uv.lock) | **Loud** failure at analysis: `cycle in dependency graph` (`unishell -> unishell_unix -> unishell`) | **Works** out of the box (all 3 tests pass) | Builds, but **silently wrong**: `//:unishell_win_test` fails at runtime (`unishell_win` missing despite being a direct dep) |
+| Working setup | Declare the Linux-only cycle `["unishell", "unishell-unix"]` in `experimental_requirement_cycles` (breaks Windows). Declaring all three over-includes `unishell_win` on Linux | Shared `uv.lock` unchanged, no extra config | Only `//:unishell_test` and `//:unishell_unix_test` pass; no `MODULE.bazel` workaround keeps `//:unishell_win_test` working on Linux without editing `uv.lock` |
+| How the cycle is broken | Collapses listed packages into a single group target statically (marker-unaware) | Detects SCCs automatically; per-member `_raw_*` targets + marker-aware `pycross_cycle_member_marker_deps` reachability | Detects SCCs ignoring markers; collapses all 3 into one `py_library` and gates each member on its inbound intra-SCC edge markers |
+| Uses the shared uv.lock as-is | **Yes** | **Yes** | **Yes** (with `unishell_win_test` broken) |
+| Hand work | Maintain `experimental_requirement_cycles` by hand; pick between breaking Windows or over-including `unishell_win` on Linux | None | None for active edges; broken for inactive-marker direct entries |
 
 ## Bugs and limitations found
 
 - **rules_py 2.0.0-alpha.11:**
+  - Marker-gated cycles silently drop direct dependencies: `collect_sccs` gates each SCC member on
+    the union of its inbound intra-SCC edge markers, so a member whose inbound cycle edges are
+    inactive on the current platform (like `unishell-win` on Linux) is replaced with `:empty` even
+    when depended on directly.
   - Conflicts are unsupported: conflict-gated edges are silently dropped
     ([#1510](https://github.com/aspect-build/rules_py/issues/1510)).
   - `project__<[project].name>` repos are global to the extension, so `uv.project`s on different

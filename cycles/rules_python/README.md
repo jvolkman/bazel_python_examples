@@ -1,12 +1,17 @@
 # Dependency cycles: rules_python 2.5.1
 
-The shared project ([`project/`](../project)) depends on `kedro==1.8.0` and
-`kedro-telemetry==0.9.0`, which depend on each other in PyPI metadata and in `uv.lock`.
+The shared project ([`project/`](../project)) locks `unishell==2.3.3`, `unishell-unix==2.2.4`,
+and `unishell-win==2.3.3`.
+
+- `unishell` depends on `unishell-unix` on Linux/macOS (`sys_platform == 'darwin' or sys_platform == 'linux'`)
+  and on `unishell-win` on Windows (`sys_platform == 'win32'`).
+- Both `unishell-unix` and `unishell-win` depend back on `unishell` unconditionally.
 
 **Summary:** `pip.parse(uv_lock = ...)` reads the shared `uv.lock`, but fails at analysis with
-`cycle in dependency graph` unless every cycle is declared by hand in
-`experimental_requirement_cycles`. Once declared, both `//:kedro_test` and `//:telemetry_test`
-pass in one `bazel test //...`.
+`cycle in dependency graph` unless cycles are listed by hand in `experimental_requirement_cycles`.
+For a cross-platform cycle like `unishell`, listing all three packages causes Linux targets to
+over-include `unishell_win`, while listing only `["unishell", "unishell-unix"]` passes on Linux
+but leaves the Windows cycle broken.
 
 ## Setup
 
@@ -21,9 +26,9 @@ python.toolchain(is_default = True, python_version = "3.12")
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 pip.parse(
     experimental_requirement_cycles = {
-        "kedro": [
-            "kedro",
-            "kedro-telemetry",
+        "unishell": [
+            "unishell",
+            "unishell-unix",
         ],
     },
     hub_name = "pypi_cycles",
@@ -33,59 +38,45 @@ pip.parse(
 use_repo(pip, "pypi_cycles")
 ```
 
-[`BUILD.bazel`](BUILD.bazel):
-
-```starlark
-py_test(
-    name = "kedro_test",
-    srcs = ["project/src/check_cycle.py"],
-    args = ["kedro"],
-    main = "project/src/check_cycle.py",
-    deps = ["@pypi_cycles//kedro"],
-)
-# telemetry_test: the same with @pypi_cycles//kedro_telemetry and args = ["kedro_telemetry"].
-```
-
-`MODULE.bazel` also defines `@pypi_naive` (the same `pip.parse` without
-`experimental_requirement_cycles`) for [`naive/BUILD.bazel`](naive/BUILD.bazel).
+`MODULE.bazel` also defines:
+- `@pypi_naive` (no `experimental_requirement_cycles`) for [`naive/BUILD.bazel`](naive/BUILD.bazel).
+- `@pypi_cross_platform` (`["unishell", "unishell-unix", "unishell-win"]`) for
+  [`cross_platform/BUILD.bazel`](cross_platform/BUILD.bazel).
 
 Run:
 
 ```sh
-bazel test //...                # working setup with experimental_requirement_cycles
-bazel build //naive:kedro_test  # reproduces the cycle error
+bazel test //...                            # passes on Linux (only Unix cycle declared)
+bazel build //naive:unishell_test           # reproduces the analysis cycle error
+bazel test //cross_platform:unishell_test   # reproduces unishell_win over-inclusion on Linux
 ```
 
 ## Result
 
 | Command | Target | Status | Observed |
 | --- | --- | --- | --- |
-| `bazel test //...` | `//:kedro_test` | pass | `entry=kedro kedro=1.8.0 kedro_telemetry=0.9.0` |
-| `bazel test //...` | `//:telemetry_test` | pass | `entry=kedro_telemetry kedro=1.8.0 kedro_telemetry=0.9.0` |
-| `bazel build //naive:kedro_test` | `//naive:kedro_test` | analysis error | `cycle in dependency graph` (`kedro -> kedro_telemetry -> kedro`) |
+| `bazel test //...` | `//:unishell_test` | pass | `unishell=True unishell_unix=True unishell_win=False` |
+| `bazel test //...` | `//:unishell_unix_test` | pass | `unishell=True unishell_unix=True unishell_win=False` |
+| `bazel test //...` | `//:unishell_win_test` | pass | `unishell=True unishell_unix=True unishell_win=True` |
+| `bazel build //naive:unishell_test` | `//naive:unishell_test` | analysis error | `cycle in dependency graph` (`unishell -> unishell_unix -> unishell`) |
+| `bazel test //cross_platform:unishell_test` | `//cross_platform:unishell_test` | **fail** | `unishell=True unishell_unix=True unishell_win=True` (`AssertionError: unexpected unishell_win on Linux`) |
 
-## What happened with the naive approach
+## What happened with the naive and cross-platform setups
 
-Pointing `pip.parse(uv_lock = ...)` at the shared lock without declaring cycles fails during
-analysis:
-
-```
-ERROR: .../external/rules_python++pip+pypi_naive_312_kedro_py3_none_any_7379554b/BUILD.bazel:7:20:
-  in py_library rule @@rules_python++pip+pypi_naive_312_kedro_py3_none_any_7379554b//:pkg: cycle in dependency graph:
-.-> @@rules_python++pip+pypi_naive_312_kedro_py3_none_any_7379554b//:pkg
-|   @@rules_python++pip+pypi_naive//kedro_telemetry:pkg
-|   @@rules_python++pip+pypi_naive_312_kedro_telemetry_py3_none_any_88238665//:pkg
-|   @@rules_python++pip+pypi_naive//kedro:pkg
-`-- @@rules_python++pip+pypi_naive_312_kedro_py3_none_any_7379554b//:pkg
-```
+1. **Naive (`@pypi_naive`):** fails during analysis with `cycle in dependency graph` on
+   `unishell -> unishell_unix -> unishell`.
+2. **Cross-platform (`@pypi_cross_platform`):** declaring all three packages in
+   `experimental_requirement_cycles` avoids a cycle error on both Linux and Windows, but collapses
+   all three into one group target unconditionally — so `//cross_platform:unishell_test` pulls
+   `unishell_win` into Linux builds even though `unishell` only depends on it under
+   `sys_platform == 'win32'`.
 
 ## Friction / limitations
 
 - **Cycles must be listed by hand.** Whenever a lock update introduces a new cycle (or adds a
-  package to an existing one), builds fail until you update `experimental_requirement_cycles` in
-  `MODULE.bazel`.
-- **Overlapping cycles must be merged manually.** As documented on `pip.parse`, if `a <-> b` and
-  `a <-> c` both exist, you cannot list them as two separate entries — you must collapse them into
-  one group yourself.
-- **Uses the shared `uv.lock` as-is.** No `uv export` step is needed here because the lock has no
-  `[tool.uv] conflicts` or multi-group selection.
+  package to an existing one), builds fail until `experimental_requirement_cycles` is updated.
+- **No marker-aware cycles.** `experimental_requirement_cycles` is a static list, so a
+  cross-platform cycle forces a tradeoff: omit the Windows package (breaks Windows builds) or
+  include it (over-includes it on Linux/macOS).
+- **Overlapping cycles must be merged manually.** If `a <-> b` and `a <-> c` both exist, they must
+  be collapsed into a single entry by hand.

@@ -2,22 +2,26 @@ load("@rules_python//python:defs.bzl", "py_test")
 
 exports_files(["project/src/check_cycle.py"])
 
-# kedro and kedro-telemetry depend on each other. Each test depends on only
-# one side of the cycle and verifies both packages and their unique transitive
-# dependencies (dynaconf and requests) are importable.
-
 py_test(
-    name = "kedro_test",
+    name = "unishell_test",
     srcs = ["project/src/check_cycle.py"],
-    args = ["kedro"],
+    args = ["unishell"],
     main = "project/src/check_cycle.py",
-    deps = ["@pypi_cycles//kedro"],
+    deps = ["@pypi_cycles//unishell"],
 )
 
 py_test(
-    name = "telemetry_test",
+    name = "unishell_unix_test",
     srcs = ["project/src/check_cycle.py"],
-    args = ["kedro_telemetry"],
+    args = ["unishell_unix"],
     main = "project/src/check_cycle.py",
-    deps = ["@pypi_cycles//kedro_telemetry"],
+    deps = ["@pypi_cycles//unishell_unix"],
+)
+
+py_test(
+    name = "unishell_win_test",
+    srcs = ["project/src/check_cycle.py"],
+    args = ["unishell_win"],
+    main = "project/src/check_cycle.py",
+    deps = ["@pypi_cycles//unishell_win"],
 )

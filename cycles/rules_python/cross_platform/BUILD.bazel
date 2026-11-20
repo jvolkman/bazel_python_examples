@@ -1,0 +1,14 @@
+load("@rules_python//python:defs.bzl", "py_test")
+
+# Cross-platform experimental_requirement_cycles includes unishell-win so
+# Windows builds don't fail analysis, but collapses all three packages into one
+# group target and over-includes unishell_win on Linux. Tagged manual so
+# `bazel test //...` passes.
+py_test(
+    name = "unishell_test",
+    srcs = ["//:project/src/check_cycle.py"],
+    args = ["unishell"],
+    main = "//:project/src/check_cycle.py",
+    tags = ["manual"],
+    deps = ["@pypi_cross_platform//unishell"],
+)

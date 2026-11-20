@@ -10,14 +10,14 @@ python.toolchain(
 
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 
-# Working setup: manually declare the cycle with experimental_requirement_cycles
-# so rules_python collapses kedro and kedro-telemetry into one group target.
-# Note: hub name avoids reserved "pypi" warning.
+# Working on Linux: declare only the Linux-active cycle. This passes all three
+# tests on Linux without pulling unishell-win into //:unishell_test, but breaks
+# on Windows (where unishell <-> unishell-win forms an undeclared cycle).
 pip.parse(
     experimental_requirement_cycles = {
-        "kedro": [
-            "kedro",
-            "kedro-telemetry",
+        "unishell": [
+            "unishell",
+            "unishell-unix",
         ],
     },
     hub_name = "pypi_cycles",
@@ -25,11 +25,27 @@ pip.parse(
     uv_lock = "//:project/uv.lock",
 )
 
-# Naive setup: pointing pip.parse(uv_lock = ...) at the lock without declaring
-# the cycle fails analysis with "cycle in dependency graph" (see //naive:...).
+# Cross-platform cycle declaration: includes unishell-win so Windows builds
+# don't hit a cycle error, but over-includes unishell-win on Linux (see
+# //cross_platform:unishell_test).
+pip.parse(
+    experimental_requirement_cycles = {
+        "unishell": [
+            "unishell",
+            "unishell-unix",
+            "unishell-win",
+        ],
+    },
+    hub_name = "pypi_cross_platform",
+    python_version = "3.12",
+    uv_lock = "//:project/uv.lock",
+)
+
+# Naive setup: no experimental_requirement_cycles declared. Fails analysis with
+# "cycle in dependency graph" (see //naive:unishell_test).
 pip.parse(
     hub_name = "pypi_naive",
     python_version = "3.12",
     uv_lock = "//:project/uv.lock",
 )
-use_repo(pip, "pypi_cycles", "pypi_naive")
+use_repo(pip, "pypi_cross_platform", "pypi_cycles", "pypi_naive")

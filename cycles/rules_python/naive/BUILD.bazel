@@ -3,10 +3,10 @@ load("@rules_python//python:defs.bzl", "py_test")
 # Naive: no experimental_requirement_cycles declared. Fails analysis with
 # "cycle in dependency graph". Tagged manual so `bazel test //...` passes.
 py_test(
-    name = "kedro_test",
+    name = "unishell_test",
     srcs = ["//:project/src/check_cycle.py"],
-    args = ["kedro"],
+    args = ["unishell"],
     main = "//:project/src/check_cycle.py",
     tags = ["manual"],
-    deps = ["@pypi_naive//kedro"],
+    deps = ["@pypi_naive//unishell"],
 )
