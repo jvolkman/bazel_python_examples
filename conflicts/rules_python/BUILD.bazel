@@ -9,10 +9,11 @@ py_test(
     name = "torch_cpu_test",
     srcs = ["project/src/check_torch.py"],
     args = ["cpu"],
+    config_settings = {"@rules_python//python/config_settings:venv": "pypi_cpu"},
     main = "project/src/check_torch.py",
     deps = [
-        "@pypi_cpu//numpy",
-        "@pypi_cpu//torch",
+        "@pypi//numpy",
+        "@pypi//torch",
     ],
 )
 
@@ -20,9 +21,10 @@ py_test(
     name = "torch_cu132_test",
     srcs = ["project/src/check_torch.py"],
     args = ["cu132"],
+    config_settings = {"@rules_python//python/config_settings:venv": "pypi_cu132"},
     main = "project/src/check_torch.py",
     deps = [
-        "@pypi_cu132//numpy",
-        "@pypi_cu132//torch",
+        "@pypi//numpy",
+        "@pypi//torch",
     ],
 )

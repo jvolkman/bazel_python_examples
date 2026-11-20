@@ -41,8 +41,8 @@ In rules_py 2.0.0-alpha.11:
 
 In rules_python 2.5.1:
 
-- `pip.parse(uv_lock = ...)` ignores `[tool.uv] conflicts` and cannot filter dependency groups.
-- `uv export` drops extras that a dependency requests on its own dependencies ([#4168](https://github.com/bazel-contrib/rules_python/issues/4168), closed as not planned), which breaks CUDA `torch` unless restored by hand.
+- `pip.parse(uv_lock = ...)` ignores `[tool.uv] conflicts` and cannot filter extras or dependency groups (requiring separate per-variant `uv.lock` files or `uv export` to `requirements.txt`).
+- When using `uv export` to `requirements.txt` instead of `uv_lock`, stripped transitive extras are not restored ([#4168](https://github.com/bazel-contrib/rules_python/issues/4168), closed as not planned), which breaks CUDA `torch` unless restored by hand.
 - `pip.parse(uv_lock = ...)` fails analysis on dependency cycles unless every cycle is merged and listed by hand in `experimental_requirement_cycles`, which is static and cannot respect version or platform markers.
 - Sdist builds run `pip wheel` during repository fetch on the host (non-hermetic, network-dependent, leaks wheels through `~/.cache/pip`), and `setuptools` `build_clib` sdists fail unless `environment = {"AR": "ar"}` overrides `python-build-standalone`'s `/tools/llvm/bin/llvm-ar`.
 - A multi-file `requirements_by_platform` hub is empty if `target_platforms` is omitted.

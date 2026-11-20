@@ -10,10 +10,17 @@ This module builds the two sdist-only C extensions in [`project/`](../project) (
 rules_pycross builds sdists hermetically in sandboxed Bazel build actions (`PycrossPep517Build`)
 using Bazel's CC toolchain, then repairs the resulting wheels (`manylinux`). Because `uv.lock`
 does not lock `[build-system].requires`, PEP 517 backends (`setuptools`, `wheel`, `cython`) must
-come from a lockfile. rules_pycross ships the PyPA `build` frontend internally, and lets you point
-`uv.package(name = "*", build_tools_repo = "build_tools")` at a separate, reusable
-[`build_tools/uv.lock`](build_tools/uv.lock) so the shared `project/uv.lock` stays untouched and
-build tools never enter `@pypi`.
+come from a lockfile. rules_pycross ships the PyPA `build` frontend internally, and resolves build
+backends in either of two ways:
+
+- **Same lockfile (no separate lock needed):** add `setuptools`, `wheel`, and `cython` to a
+  `[dependency-groups]` group (for example `build`) in your main `pyproject.toml` and lock it into
+  `uv.lock`. rules_pycross's auto-generated `<workspace>__build` repo picks them up automatically
+  while keeping them out of `@pypi` (which only exposes `default` dependencies).
+- **Optional separate `build_tools_repo` (used below):** point
+  `uv.package(name = "*", build_tools_repo = "build_tools")` at a separate, reusable
+  [`build_tools/uv.lock`](build_tools/uv.lock). This module uses `build_tools_repo` so the shared
+  `project/uv.lock` stays completely untouched across all three rulesets.
 
 [`MODULE.bazel`](MODULE.bazel) (trimmed):
 

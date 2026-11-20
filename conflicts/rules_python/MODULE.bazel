@@ -10,30 +10,20 @@ python.toolchain(
 
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 
-# One hub per torch variant. The requirements files are exported from the
-# shared uv.lock with `bazel run //requirements:<variant>.update`
-# (`uv export --frozen --extra <variant>`, see tools/export_requirements.py).
-# Pointing pip.parse(uv_lock = ...) at the shared uv.lock fails; see README.md.
+# Pointing pip.parse(uv_lock = ...) at the shared project/uv.lock fails (see
+# naive/). Instead, maintain one uv.lock per torch variant (no [tool.uv]
+# conflicts) and let rules_python's unified @pypi hub route between them via
+# @rules_python//python/config_settings:venv.
+pip.default(default_hub = "pypi_cpu")
+
 pip.parse(
-    # torch is only on the PyTorch index. Pin it there; everything else comes
-    # from the default index (https://pypi.org/simple).
-    experimental_index_url_overrides = {"torch": "https://download.pytorch.org/whl/cpu"},
     hub_name = "pypi_cpu",
     python_version = "3.12",
-    requirements_lock = "//requirements:cpu.txt",
+    uv_lock = "//variants/cpu:uv.lock",
 )
 pip.parse(
-    experimental_index_url_overrides = {"torch": "https://download.pytorch.org/whl/cu132"},
     hub_name = "pypi_cu132",
     python_version = "3.12",
-    requirements_lock = "//requirements:cu132.txt",
+    uv_lock = "//variants/cu132:uv.lock",
 )
-use_repo(pip, "pypi_cpu", "pypi_cu132")
-
-# uv for `bazel run //requirements:<variant>.update` (uv export).
-uv = use_extension(
-    "@rules_python//python/uv:uv.bzl",
-    "uv",
-    dev_dependency = True,
-)
-uv.configure(version = "0.13.5")
+use_repo(pip, "pypi")

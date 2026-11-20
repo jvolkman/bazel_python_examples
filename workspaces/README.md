@@ -13,6 +13,30 @@ This scenario comes from a common question about uv workspaces in Bazel: given o
 
 Each Bazel module builds `//:common`, `//:app_a`, and `//:app_b`, and runs `//:app_a_test` (`pytest 7.4.4`) and `//:app_b_test` (`pytest 9.2.0`) in one `bazel test //...` invocation.
 
+```mermaid
+flowchart LR
+    subgraph ws["Single uv workspace and uv.lock"]
+        root["monorepo (root)<br/>dev: ruff, mypy<br/>(excluded from Bazel)"]
+        common["libs/common<br/>dep: requests"]
+        app_a["apps/app-a<br/>deps: common, pydantic"]
+        app_b["apps/app-b<br/>deps: common, attrs"]
+
+        app_a --> common
+        app_b --> common
+
+        app_a -. "group: test<br/>(conflicts with app-b)" .-> pytest7["pytest 7.4.4"]
+        app_b -. "group: test<br/>(conflicts with app-a)" .-> pytest9["pytest 9.2.0"]
+    end
+
+    test_a(["//:app_a_test"]) --> app_a
+    test_a --> pytest7
+    test_b(["//:app_b_test"]) --> app_b
+    test_b --> pytest9
+
+    style ws fill:none,stroke:#888,stroke-dasharray:5 5
+    style root stroke-dasharray:4 4
+```
+
 ## Comparison
 
 | | [rules_python](rules_python/README.md) | [rules_pycross](rules_pycross/README.md) | [rules_py](rules_py/README.md) |

@@ -11,6 +11,67 @@ On Python 3.14 (Linux x86_64), each module tests two entry points in [`project/s
 - `//:airflow_test` (`deps = ["apache_airflow"]`) checks that `airflow` and `airflow.providers.standard` are importable and that `tinkerpop` and `gremlin_python` are absent.
 - `//:tinkerpop_test` (`deps = ["apache_airflow_providers_apache_tinkerpop"]`) depends directly on `tinkerpop` and checks that `tinkerpop`, `gremlin_python`, `airflow`, and `airflow.providers.standard` are all importable.
 
+## Dependency graph
+
+```mermaid
+flowchart LR
+    airflow_test(["//:airflow_test"]) --> airflow
+    tinkerpop_test(["//:tinkerpop_test"]) --> tinkerpop
+
+    subgraph base["8-package base cycle (always active)"]
+        airflow["apache-airflow"]
+        core["apache-airflow-core"]
+        task_sdk["apache-airflow-task-sdk"]
+        compat["providers-common-compat"]
+        others["4 other base providers:<br/>common-io, common-sql,<br/>smtp, standard"]
+
+        airflow --> core
+        airflow --> task_sdk
+        core <--> task_sdk
+        core --> compat
+        core --> others
+        others --> compat
+        compat --> airflow
+        others --> airflow
+    end
+
+    airflow -. "extra: apache-tinkerpop<br/>python_full_version &lt; '3.14'<br/>(inactive on 3.14)" .-> tinkerpop["providers-apache-tinkerpop"]
+    tinkerpop --> airflow
+    tinkerpop --> compat
+    tinkerpop --> gremlin["gremlinpython<br/>(external dep)"]
+
+    style base fill:none,stroke:#888,stroke-dasharray:5 5
+```
+
+## How each ruleset resolves the cycle on Python 3.14
+
+```mermaid
+flowchart TB
+    subgraph pycross["rules_pycross (per-entry marker reachability)"]
+        direction LR
+        pc_a(["//:airflow_test"]) --> pc_a_res["8 base packages<br/>(pass)"]
+        pc_t(["//:tinkerpop_test"]) --> pc_t_res["tinkerpop + gremlinpython<br/>+ 8 base packages (pass)"]
+    end
+
+    subgraph rules_py["rules_py (single collapsed 9-pkg SCC)"]
+        direction LR
+        rp_a(["//:airflow_test"]) --> rp_scc["Shared SCC target:<br/>8 base packages + gremlinpython<br/>(tinkerpop wheel becomes :empty)"]
+        rp_t(["//:tinkerpop_test"]) --> rp_scc
+        rp_scc --> rp_a_res["airflow_test: fails<br/>(leaks gremlinpython)"]
+        rp_scc --> rp_t_res["tinkerpop_test: fails<br/>(drops tinkerpop)"]
+    end
+
+    subgraph rules_python["rules_python (manual experimental_requirement_cycles)"]
+        direction LR
+        rpy_8["List 8 base pkgs"] --> rpy_8_res["3.14 passes;<br/>breaks 3.12 / 3.13"]
+        rpy_9["List all 9 pkgs"] --> rpy_9_res["3.12 / 3.13 pass;<br/>3.14 over-includes tinkerpop + gremlin"]
+    end
+
+    style pycross fill:none,stroke:#888
+    style rules_py fill:none,stroke:#888
+    style rules_python fill:none,stroke:#888
+```
+
 ## Comparison
 
 | | [rules_python](rules_python/README.md) | [rules_pycross](rules_pycross/README.md) | [rules_py](rules_py/README.md) |
