@@ -1,7 +1,7 @@
 # Building C-extension sdists with rules_py 2.0.0-alpha.11
 
 This module builds the two sdist-only C extensions in [`project/`](../project) (`crcmod==1.7` and
-`datrie==0.8.3`) using rules_py 2.0.0-alpha.11 on Bazel 9.3.2 and Python 3.12. See
+`datrie==0.8.3`) using rules_py 2.0.0-alpha.11 on Bazel 9.3.2 and Python 3.14. See
 [`sdists/README.md`](../README.md) for the scenario overview.
 
 ## Setup
@@ -25,7 +25,7 @@ copies `project/pyproject.toml`, adds `build`, `setuptools`, `wheel`, and `cytho
 bazel_dep(name = "rules_py", version = "2.0.0-alpha.11")
 
 interpreters = use_extension("@rules_py//py:extensions.bzl", "python_interpreters")
-interpreters.toolchain(python_version = "3.12")
+interpreters.toolchain(python_version = "3.14")
 use_repo(interpreters, "python_interpreters")
 
 register_toolchains("@python_interpreters//:all")
@@ -40,7 +40,7 @@ uv.project(
 use_repo(uv, "pypi")
 ```
 
-[`.bazelrc`](.bazelrc) selects Python 3.12 (`common --@rules_py//py:python_version=3.12`), and
+[`.bazelrc`](.bazelrc) selects Python 3.14 (`common --@rules_py//py:python_version=3.14`), and
 [`BUILD.bazel`](BUILD.bazel) sets `dep_group = "sdist-app"` on `py_test`:
 
 ```starlark

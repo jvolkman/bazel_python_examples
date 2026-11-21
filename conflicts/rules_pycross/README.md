@@ -3,7 +3,7 @@
 uv `conflicts` between the `cpu` and `cu132` extras of the shared
 [`project/`](../project) (one `uv.lock`, two torch builds), with
 [rules_pycross](https://github.com/jvolkman/rules_pycross) 2.2.0 and
-rules_python 2.5.1 (toolchain, `py_test`, and `config_settings` transition), Bazel 9.3.2, Python 3.12.
+rules_python 2.5.1 (toolchain, `py_test`, and `config_settings` transition), Bazel 9.3.2, Python 3.14.
 
 ## Setup
 
@@ -23,7 +23,7 @@ bazel_dep(name = "rules_pycross", version = "2.2.0")
 bazel_dep(name = "rules_python", version = "2.5.1")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
-python.toolchain(is_default = True, python_version = "3.12")
+python.toolchain(is_default = True, python_version = "3.14")
 
 config = use_extension("@rules_python//python/extensions:config.bzl", "config")
 config.add_transition_setting(setting = "@pypi//_variants")
@@ -53,7 +53,7 @@ py_test(
 ```
 
 There is no pycross-specific toolchain setup. rules_pycross picks up the registered rules_python
-toolchain (3.12) and registers its own toolchains automatically. [`naive/`](naive/BUILD.bazel)
+toolchain (3.14) and registers its own toolchains automatically. [`naive/`](naive/BUILD.bazel)
 keeps a `manual` target without `config_settings` to show what happens when no variant is selected.
 
 Run:

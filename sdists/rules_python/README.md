@@ -1,7 +1,7 @@
 # Building C-extension sdists with rules_python 2.5.1
 
 This module builds the two sdist-only C extensions in [`project/`](../project) (`crcmod==1.7` and
-`datrie==0.8.3`) using rules_python 2.5.1 on Bazel 9.3.2 and Python 3.12. See
+`datrie==0.8.3`) using rules_python 2.5.1 on Bazel 9.3.2 and Python 3.14. See
 [`sdists/README.md`](../README.md) for the scenario overview.
 
 ## Setup
@@ -18,13 +18,13 @@ override `AR` to the host `ar` via `environment = {"AR": "ar"}`.
 bazel_dep(name = "rules_python", version = "2.5.1")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
-python.toolchain(is_default = True, python_version = "3.12")
+python.toolchain(is_default = True, python_version = "3.14")
 
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 pip.parse(
     environment = {"AR": "ar"},
     hub_name = "pypi",
-    python_version = "3.12",
+    python_version = "3.14",
     uv_lock = "//:project/uv.lock",
 )
 use_repo(pip, "pypi")
@@ -65,7 +65,7 @@ it, reproduced in [`naive/BUILD.bazel`](naive/BUILD.bazel)), `crcmod` builds wit
 then `datrie` fails in `build_clib`:
 
 ```text
-/tools/llvm/bin/llvm-ar rcs build/temp.linux-x86_64-cpython-312/libdatrie.a ...
+/tools/llvm/bin/llvm-ar rcs build/temp.linux-x86_64-cpython-314/libdatrie.a ...
 error: [Errno 2] No such file or directory: '/tools/llvm/bin/llvm-ar'
 ```
 

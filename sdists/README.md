@@ -1,6 +1,6 @@
 # Building C-extension sdists (`crcmod` and `datrie`)
 
-Some PyPI packages ship only source distributions (`.tar.gz` sdists) with no pre-built wheels. [`project/`](project) locks two sdist-only C extensions on Python 3.12 (Linux x86_64), neither of which needs external system C libraries:
+Some PyPI packages ship only source distributions (`.tar.gz` sdists) with no pre-built wheels. [`project/`](project) locks two sdist-only C extensions on Python 3.14 (Linux x86_64), neither of which needs external system C libraries:
 
 - `crcmod==1.7`: legacy `setup.py`-only package (`from distutils.core import setup`) compiling `crcmod._crcfunext`. Its `setup.py` silently falls back to pure Python if C compilation fails.
 - `datrie==0.8.3`: PEP 517 `pyproject.toml` package (`[build-system] requires = ["setuptools>=40.8.0", "wheel", "Cython"]`) that compiles a C static library (`libdatrie.a` via `setuptools` `build_clib`) and links a Cython extension (`datrie.*.so`).

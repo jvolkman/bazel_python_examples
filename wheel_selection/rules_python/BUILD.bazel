@@ -45,7 +45,7 @@ py_test(
 py_test(
     name = "cbor2_default_test",
     srcs = ["project/src/check_wheel.py"],
-    args = ["dist", "cbor2", "cp312-cp312-manylinux_2_28_x86_64"],
+    args = ["dist", "cbor2", "cp314-cp314-manylinux_2_28_x86_64"],
     main = "project/src/check_wheel.py",
     deps = ["@pypi_default//cbor2"],
 )
@@ -120,7 +120,7 @@ transitioned_whl(
 py_test(
     name = "cbor2_musl_1_2_test",
     srcs = ["project/src/check_wheel.py"],
-    args = ["whl", "$(rootpath :cbor2_musl_1_2_whl)", "cp312-cp312-musllinux_1_2_x86_64"],
+    args = ["whl", "$(rootpath :cbor2_musl_1_2_whl)", "cp314-cp314-musllinux_1_2_x86_64"],
     data = [":cbor2_musl_1_2_whl"],
     main = "project/src/check_wheel.py",
 )

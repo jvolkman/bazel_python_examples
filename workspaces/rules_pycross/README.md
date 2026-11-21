@@ -3,7 +3,7 @@
 The uv workspace in [`project/`](../project) (root `monorepo` with a `dev` group, members
 `libs/common`, `apps/app-a`, `apps/app-b`, and conflicting per-member `test` groups that need
 pytest 7 and pytest 8+), with [rules_pycross](https://github.com/jvolkman/rules_pycross) 2.2.0 and
-rules_python 2.5.1 (toolchain and `py_library`/`py_test`), Bazel 9.3.2, Python 3.12.
+rules_python 2.5.1 (toolchain and `py_library`/`py_test`), Bazel 9.3.2, Python 3.14.
 
 ## Setup
 
@@ -25,7 +25,7 @@ bazel_dep(name = "rules_pycross", version = "2.2.0")
 bazel_dep(name = "rules_python", version = "2.5.1")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
-python.toolchain(is_default = True, python_version = "3.12")
+python.toolchain(is_default = True, python_version = "3.14")
 
 uv = use_extension("@rules_pycross//pycross/extensions:uv.bzl", "uv")
 uv.workspace(name = "mono", lock_file = "//:project/uv.lock")

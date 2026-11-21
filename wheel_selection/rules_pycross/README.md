@@ -2,7 +2,7 @@
 
 This module tests wheel selection for [`project/`](../project) (`bcrypt==5.0.0` and `cbor2==6.3.0`)
 using [rules_pycross](https://github.com/jvolkman/rules_pycross) 2.2.0 and
-rules_python 2.5.1 (toolchain and `py_test`), on Bazel 9.3.2 and Python 3.12. See
+rules_python 2.5.1 (toolchain and `py_test`), on Bazel 9.3.2 and Python 3.14. See
 [`wheel_selection/README.md`](../README.md) for the scenario overview.
 
 ## Setup
@@ -23,7 +23,7 @@ bazel_dep(name = "rules_pycross", version = "2.2.0")
 bazel_dep(name = "rules_python", version = "2.5.1")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
-python.toolchain(is_default = True, python_version = "3.12")
+python.toolchain(is_default = True, python_version = "3.14")
 
 uv = use_extension("@rules_pycross//pycross/extensions:uv.bzl", "uv")
 uv.workspace(name = "pypi", lock_file = "//:project/uv.lock")
@@ -50,12 +50,12 @@ bazel build //:cbor2_glibc_2_17_whl --@rules_pycross//pycross/settings:unavailab
 | Target | Configuration | Selected wheel tag |
 | --- | --- | --- |
 | `//:bcrypt_default_test` | Default (`glibc 2.28`) | `cp39-abi3-manylinux_2_28_x86_64` |
-| `//:cbor2_default_test` | Default (`glibc 2.28`) | `cp312-cp312-manylinux_2_28_x86_64` |
+| `//:cbor2_default_test` | Default (`glibc 2.28`) | `cp314-cp314-manylinux_2_28_x86_64` |
 | `//:bcrypt_glibc_2_17_test` | `glibc_version=2.17` | `cp39-abi3-manylinux_2_17_x86_64` |
 | `//:bcrypt_glibc_2_34_test` | `glibc_version=2.34` | `cp39-abi3-manylinux_2_34_x86_64` |
 | `//:bcrypt_musl_1_2_test` | `py_linux_libc=musl`, `musl_version=1.2` | `cp39-abi3-musllinux_1_2_x86_64` |
 | `//:bcrypt_musl_1_1_test` | `py_linux_libc=musl`, `musl_version=1.1` | `cp39-abi3-musllinux_1_1_x86_64` |
-| `//:cbor2_musl_1_2_test` | `py_linux_libc=musl`, `musl_version=1.2` | `cp312-cp312-musllinux_1_2_x86_64` |
+| `//:cbor2_musl_1_2_test` | `py_linux_libc=musl`, `musl_version=1.2` | `cp314-cp314-musllinux_1_2_x86_64` |
 | `//:cbor2_glibc_2_17_whl` (`manual`) | `glibc_version=2.17`, `build_mode="never"` | Rejected cleanly (`@platforms//:incompatible`, or execution error under `fail_at_execution`) |
 
 All 7 tests pass in one `bazel test //...` invocation.

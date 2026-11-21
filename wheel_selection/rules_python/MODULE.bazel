@@ -7,7 +7,7 @@ bazel_dep(name = "rules_python", version = "2.5.1")
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
     is_default = True,
-    python_version = "3.12",
+    python_version = "3.14",
 )
 
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
@@ -16,7 +16,7 @@ pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 # uncapped manylinux_* with minimal-version selection).
 pip.parse(
     hub_name = "pypi_default",
-    python_version = "3.12",
+    python_version = "3.14",
     uv_lock = "//:project/uv.lock",
 )
 
@@ -98,7 +98,7 @@ pip.default(
 pip.parse(
     download_only = True,
     hub_name = "pypi_custom",
-    python_version = "3.12",
+    python_version = "3.14",
     target_platforms = [
         "linux_x86_64_glibc_2_17",
         "linux_x86_64_glibc_2_34",

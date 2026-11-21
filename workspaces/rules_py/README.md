@@ -1,7 +1,7 @@
 # uv workspace with conflicting test groups, using rules_py 2.0.0-alpha.11
 
 Module: `workspaces_rules_py`. It uses rules_py's own interpreter provisioning
-(`python_interpreters`, Python 3.12) and rules_py's `py_library` and
+(`python_interpreters`, Python 3.14) and rules_py's `py_library` and
 `py_pytest_test`.
 
 ```sh
@@ -80,8 +80,8 @@ is no ruff, mypy, or any other package from the `dev` group.
 | Target | Status | Observed |
 | --- | --- | --- |
 | `//:common`, `//:app_a`, `//:app_b` | build | (with the default `dep_group=prod`) |
-| `//:app_a_test` | pass | `platform linux -- Python 3.12.13, pytest-7.4.4` |
-| `//:app_b_test` | pass | `platform linux -- Python 3.12.13, pytest-9.2.0` |
+| `//:app_a_test` | pass | `platform linux -- Python 3.14.3, pytest-7.4.4` |
+| `//:app_b_test` | pass | `platform linux -- Python 3.14.3, pytest-9.2.0` |
 | `//bazel/prod:smoke_test` | pass | imports app_a and app_b (`requests 2.34.2`); `pytest`, `ruff` and `mypy` are not importable |
 
 Naive attempts:

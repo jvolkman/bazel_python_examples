@@ -1,7 +1,7 @@
 # Wheel selection across glibc and musl with rules_python 2.5.1
 
 This module tests wheel selection for [`project/`](../project) (`bcrypt==5.0.0` and `cbor2==6.3.0`)
-using rules_python 2.5.1 on Bazel 9.3.2 and Python 3.12. See
+using rules_python 2.5.1 on Bazel 9.3.2 and Python 3.14. See
 [`wheel_selection/README.md`](../README.md) for the scenario overview.
 
 ## Setup
@@ -33,12 +33,12 @@ bazel build //:cbor2_glibc_2_17_whl
 | Target | Hub / platform | Selected wheel tag |
 | --- | --- | --- |
 | `//:bcrypt_default_test` | `@pypi_default` (`linux_x86_64`) | `cp39-abi3-manylinux_2_17_x86_64` (MVS lowest) |
-| `//:cbor2_default_test` | `@pypi_default` (`linux_x86_64`) | `cp312-cp312-manylinux_2_28_x86_64` (uncapped `manylinux_*`) |
+| `//:cbor2_default_test` | `@pypi_default` (`linux_x86_64`) | `cp314-cp314-manylinux_2_28_x86_64` (uncapped `manylinux_*`) |
 | `//:bcrypt_glibc_2_17_test` | `@pypi_custom` (`manylinux_2_17_x86_64`) | `cp39-abi3-manylinux_2_17_x86_64` |
 | `//:bcrypt_glibc_2_34_test` | `@pypi_custom` (`manylinux_2_34_x86_64`) | `cp39-abi3-manylinux_2_17_x86_64` (MVS still picks `2_17`, not `2_34`) |
 | `//:bcrypt_musl_1_2_test` | `@pypi_custom` (`musllinux_1_2_x86_64`) | `cp39-abi3-musllinux_1_1_x86_64` (MVS still picks `1_1`, not `1_2`) |
 | `//:bcrypt_musl_1_1_test` | `@pypi_custom` (`musllinux_1_1_x86_64`) | `cp39-abi3-musllinux_1_1_x86_64` |
-| `//:cbor2_musl_1_2_test` | `@pypi_custom` (`musllinux_1_2_x86_64`) | `cp312-cp312-musllinux_1_2_x86_64` |
+| `//:cbor2_musl_1_2_test` | `@pypi_custom` (`musllinux_1_2_x86_64`) | `cp314-cp314-musllinux_1_2_x86_64` |
 | `//:cbor2_glibc_2_17_whl` (`manual`) | `@pypi_custom` (`manylinux_2_17_x86_64`) | Analysis error (`No matching wheel for current configuration's Python version and platform`) |
 
 All 7 tests pass in one `bazel test //...` invocation.

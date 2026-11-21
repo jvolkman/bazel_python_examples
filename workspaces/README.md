@@ -2,7 +2,7 @@
 
 This scenario comes from a common question about uv workspaces in Bazel: given one workspace and one lock file, how do you expose a single hub with every member's runtime dependencies while leaving a root `dev` group (linters, type stubs) out of Bazel, without editing `[dependency-groups]` in the root `pyproject.toml` or maintaining a member list by hand?
 
-[`project/`](project) sets up that workspace on Python 3.12 (Linux x86_64):
+[`project/`](project) sets up that workspace on Python 3.14 (Linux x86_64):
 
 - The root `monorepo` package (`package = false`) defines `[dependency-groups] dev = ["ruff", "mypy"]`.
 - `libs/common` depends on `requests`.

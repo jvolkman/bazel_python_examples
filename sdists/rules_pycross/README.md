@@ -2,7 +2,7 @@
 
 This module builds the two sdist-only C extensions in [`project/`](../project) (`crcmod==1.7` and
 `datrie==0.8.3`) using [rules_pycross](https://github.com/jvolkman/rules_pycross) 2.2.0 and
-rules_python 2.5.1 (toolchain and `py_test`), on Bazel 9.3.2 and Python 3.12. See
+rules_python 2.5.1 (toolchain and `py_test`), on Bazel 9.3.2 and Python 3.14. See
 [`sdists/README.md`](../README.md) for the scenario overview.
 
 ## Setup
@@ -29,7 +29,7 @@ bazel_dep(name = "rules_pycross", version = "2.2.0")
 bazel_dep(name = "rules_python", version = "2.5.1")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
-python.toolchain(is_default = True, python_version = "3.12")
+python.toolchain(is_default = True, python_version = "3.14")
 
 uv = use_extension("@rules_pycross//pycross/extensions:uv.bzl", "uv")
 

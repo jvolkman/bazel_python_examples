@@ -29,7 +29,7 @@ suites, with pytest 7 and pytest 9 respectively.
 bazel_dep(name = "rules_python", version = "2.5.1")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
-python.toolchain(is_default = True, python_version = "3.12")
+python.toolchain(is_default = True, python_version = "3.14")
 
 # Allow py_binary/py_test to set //:deps through `config_settings`.
 config = use_extension("@rules_python//python/extensions:config.bzl", "config")
@@ -56,7 +56,7 @@ pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 
 pip.parse(
     hub_name = "monorepo_deps",
-    python_version = "3.12",
+    python_version = "3.14",
     requirements_by_platform = {
         "//requirements:prod.txt": "linux_x86_64_prod",
         "//requirements:app_a_test.txt": "linux_x86_64_app_a_test",
@@ -136,16 +136,16 @@ bazel test //...
 | Target | `bazel test //...` | Observed |
 | --- | --- | --- |
 | `//:common`, `//:app_a`, `//:app_b` | build | resolve `@monorepo_deps` in the default `prod` configuration |
-| `//:app_a_test` | pass | `platform linux -- Python 3.12.16, pytest-7.4.4, pluggy-1.7.0`, 2 passed |
-| `//:app_b_test` | pass | `platform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0`, 2 passed |
+| `//:app_a_test` | pass | `platform linux -- Python 3.14.10, pytest-7.4.4, pluggy-1.7.0`, 2 passed |
+| `//:app_b_test` | pass | `platform linux -- Python 3.14.10, pytest-9.2.0, pluggy-1.7.0`, 2 passed |
 | `//requirements:{prod,app_a_test,app_b_test}_test` | pass | files match `uv export` of `uv.lock` |
 
 How the single hub behaves:
 
 - Wheels that are the same in several sets resolve to one repository. For
   example, `@monorepo_deps//pydantic` selects
-  `monorepo_deps_312_pydantic_py3_none_any_3f7b3477` for both
-  `cp312_linux_x86_64_prod` and `cp312_linux_x86_64_app_a_test`. Only `pytest`
+  `monorepo_deps_314_pydantic_py3_none_any_3f7b3477` for both
+  `cp314_linux_x86_64_prod` and `cp314_linux_x86_64_app_a_test`. Only `pytest`
   gets two repositories, one per test platform.
 - The `dev` group never reaches Bazel. No `ruff` or `mypy` repositories are
   created, and `cquery 'deps(//:app_b)'` shows no pytest, ruff or mypy.
@@ -156,8 +156,8 @@ How the single hub behaves:
   configurable attribute "actual" in @@rules_python++pip+monorepo_deps//pytest:_no_matching_repository
   doesn't match this configuration: No matching wheel for current configuration's Python version and platform.
   ... This distribution supports the following Python configuration settings:
-      //_config:is_cp312_linux_x86_64_app_a_test
-      //_config:is_cp312_linux_x86_64_app_b_test
+      //_config:is_cp314_linux_x86_64_app_a_test
+      //_config:is_cp314_linux_x86_64_app_b_test
   ```
 
 ### What the Slack user asked for
@@ -181,7 +181,7 @@ The naive setup is in [`naive/`](naive). It is a separate module listed in
 `.bazelignore`, and it is one hub from the shared lock:
 
 ```starlark
-pip.parse(hub_name = "pypi", python_version = "3.12", uv_lock = "//:project/uv.lock")
+pip.parse(hub_name = "pypi", python_version = "3.14", uv_lock = "//:project/uv.lock")
 ```
 
 `cd naive && bazel build //...` fails while Bazel evaluates the module
@@ -190,9 +190,9 @@ extension:
 ```
 ERROR: .../external/rules_python+/python/private/pypi/hub_builder.bzl:366:13: Traceback (most recent call last):
   ...
-Error in fail: attempting to override an existing repo 'pypi_312_pytest_py3_none_any_b090cdf5_linux_x86_64'
-for config setting 'struct(target_platforms = ("cp312_linux_x86_64",), version = "3.12")'
-with a new repo 'pypi_312_pytest_py3_none_any_07acdcf8_linux_x86_64'
+Error in fail: attempting to override an existing repo 'pypi_314_pytest_py3_none_any_b090cdf5_linux_x86_64'
+for config setting 'struct(target_platforms = ("cp314_linux_x86_64",), version = "3.14")'
+with a new repo 'pypi_314_pytest_py3_none_any_07acdcf8_linux_x86_64'
 ERROR: Analysis of target '//:app_a_test' failed; build aborted:
 error evaluating module extension @@rules_python+//python/extensions:pip.bzl%pip
 ```
@@ -202,7 +202,7 @@ The reader (`_uv_lock_package_platforms` in
 editable root. It follows `dependencies`, every `optional-dependencies` table
 and every `dev-dependencies` table, so both `test` groups are followed. Both
 pytest forks only have Linux/x86_64 `resolution-markers`, so both land on
-`cp312_linux_x86_64`. The reader doesn't know about `[tool.uv] conflicts` and
+`cp314_linux_x86_64`. The reader doesn't know about `[tool.uv] conflicts` and
 has no option to choose or skip groups.
 
 Two more points, from reading the source (the hard error stops anything from

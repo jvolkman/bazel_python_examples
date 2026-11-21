@@ -2,7 +2,7 @@
 
 This module tests wheel selection for [`project/`](../project) (`bcrypt==5.0.0` and `cbor2==6.3.0`)
 using [rules_py](https://github.com/aspect-build/rules_py) 2.0.0-alpha.11 on Bazel 9.3.2 and
-Python 3.12. See [`wheel_selection/README.md`](../README.md) for the scenario overview.
+Python 3.14. See [`wheel_selection/README.md`](../README.md) for the scenario overview.
 
 ## Setup
 
@@ -22,7 +22,7 @@ higher matching versions, matching `pip`/`uv`). Its platform flags live under a 
 bazel_dep(name = "rules_py", version = "2.0.0-alpha.11")
 
 interpreters = use_extension("@rules_py//py:extensions.bzl", "python_interpreters")
-interpreters.toolchain(python_version = "3.12")
+interpreters.toolchain(python_version = "3.14")
 use_repo(interpreters, "python_interpreters")
 register_toolchains("@python_interpreters//:all")
 
@@ -53,13 +53,13 @@ bazel build //:cbor2_glibc_2_17_whl
 | Target | Configuration | Selected wheel tag |
 | --- | --- | --- |
 | `//:bcrypt_default_test` | Default (host-probed `glibc 2.43`) | `cp39-abi3-manylinux_2_34_x86_64` |
-| `//:cbor2_default_test` | Default (host-probed `glibc 2.43`) | `cp312-cp312-manylinux_2_28_x86_64` |
+| `//:cbor2_default_test` | Default (host-probed `glibc 2.43`) | `cp314-cp314-manylinux_2_28_x86_64` |
 | `//:bcrypt_glibc_2_17_test` | `platform_libc=glibc`, `platform_version=2.17` | `cp39-abi3-manylinux_2_17_x86_64` |
 | `//:bcrypt_glibc_2_28_test` | `platform_libc=glibc`, `platform_version=2.28` | `cp39-abi3-manylinux_2_28_x86_64` |
 | `//:bcrypt_glibc_2_34_test` | `platform_libc=glibc`, `platform_version=2.34` | `cp39-abi3-manylinux_2_34_x86_64` |
 | `//:bcrypt_musl_1_2_test` | `platform_libc=musl`, `platform_version=1.2` | `cp39-abi3-musllinux_1_2_x86_64` |
 | `//:bcrypt_musl_1_1_test` | `platform_libc=musl`, `platform_version=1.1` | `cp39-abi3-musllinux_1_1_x86_64` |
-| `//:cbor2_musl_1_2_test` | `platform_libc=musl`, `platform_version=1.2` | `cp312-cp312-musllinux_1_2_x86_64` |
+| `//:cbor2_musl_1_2_test` | `platform_libc=musl`, `platform_version=1.2` | `cp314-cp314-musllinux_1_2_x86_64` |
 | `//:cbor2_glibc_2_17_whl` (`manual`) | `platform_libc=glibc`, `platform_version=2.17` | Falls back to sdist build (`No module named build`) |
 
 All 8 tests pass in one `bazel test //...` invocation.

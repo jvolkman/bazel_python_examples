@@ -6,7 +6,7 @@ This scenario uses the setup from uv's PyTorch documentation in [`project/pyproj
 - `[tool.uv] conflicts` declares `cpu` and `cu132` mutually exclusive.
 - `[tool.uv.sources]` routes `torch` to the PyTorch CPU or CUDA 13.2 index depending on the extra.
 
-One [`project/uv.lock`](project/uv.lock) holds `torch 2.15.0+cpu` and `torch 2.15.0+cu132` on separate forks, with the `nvidia-*` and `cuda-*` wheels only on the CUDA fork. Each Bazel module provides `//:torch_cpu_test` and `//:torch_cu132_test`, and both must pass in one `bazel test //...` invocation on Python 3.12 (Linux x86_64). The CUDA test checks `torch.version.cuda` and does not need a GPU.
+One [`project/uv.lock`](project/uv.lock) holds `torch 2.15.0+cpu` and `torch 2.15.0+cu132` on separate forks, with the `nvidia-*` and `cuda-*` wheels only on the CUDA fork. Each Bazel module provides `//:torch_cpu_test` and `//:torch_cu132_test`, and both must pass in one `bazel test //...` invocation on Python 3.14 (Linux x86_64). The CUDA test checks `torch.version.cuda` and does not need a GPU.
 
 ```mermaid
 flowchart LR

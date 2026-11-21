@@ -25,7 +25,7 @@ bazel_dep(name = "rules_python", version = "2.5.1")
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
     is_default = True,
-    python_version = "3.12",
+    python_version = "3.14",
 )
 
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
@@ -33,12 +33,12 @@ pip.default(default_hub = "pypi_cpu")
 
 pip.parse(
     hub_name = "pypi_cpu",
-    python_version = "3.12",
+    python_version = "3.14",
     uv_lock = "//variants/cpu:uv.lock",
 )
 pip.parse(
     hub_name = "pypi_cu132",
-    python_version = "3.12",
+    python_version = "3.14",
     uv_lock = "//variants/cu132:uv.lock",
 )
 use_repo(pip, "pypi")
@@ -99,7 +99,7 @@ Other things verified:
   transitive extras like `cuda-toolkit[cublas,cudart,...]` (avoiding
   bazel-contrib/rules_python#4168).
 - **Shared wheels are still separate spoke repos.** `numpy` becomes two spoke
-  repositories (`pypi_cpu_312_numpy_...` and `pypi_cu132_312_numpy_...`)
+  repositories (`pypi_cpu_314_numpy_...` and `pypi_cu132_314_numpy_...`)
   because each `pip.parse` hub creates its own spoke repos. Bazel's repository
   cache downloads the wheel once, and it is extracted once per hub.
 
@@ -112,7 +112,7 @@ setup points `pip.parse(uv_lock = ...)` straight at the shared lock:
 ```starlark
 pip.parse(
     hub_name = "pypi_naive",
-    python_version = "3.12",
+    python_version = "3.14",
     uv_lock = "//:project/uv.lock",
 )
 ```
@@ -124,10 +124,10 @@ extension:
 ERROR: .../external/rules_python+/python/private/pypi/hub_builder.bzl:366:13: Traceback (most recent call last):
   ...
 Error in fail: attempting to override an existing repo
-'pypi_naive_312_torch_cp312_cp312_manylinux_2_28_x86_64_0955c7e3_linux_x86_64'
-for config setting 'struct(target_platforms = ("cp312_linux_x86_64",), version = "3.12")'
+'pypi_naive_314_torch_cp314_cp314_manylinux_2_28_x86_64_f089c949_linux_x86_64'
+for config setting 'struct(target_platforms = ("cp314_linux_x86_64",), version = "3.14")'
 with a new repo
-'pypi_naive_312_torch_cp312_cp312_manylinux_2_28_x86_64_84936484_linux_x86_64'
+'pypi_naive_314_torch_cp314_cp314_manylinux_2_28_x86_64_593e34d5_linux_x86_64'
 ERROR: Analysis of target '//:naive_torch_cpu_test' failed; build aborted:
 error evaluating module extension @@rules_python+//python/extensions:pip.bzl%pip
 ```
@@ -138,7 +138,7 @@ The cause is in `python/private/pypi/parse_requirements.bzl`
 enables every extra it finds. uv encodes `[tool.uv] conflicts` as
 `extra == 'extra-9-torch-app-...'` markers, which the platform evaluator cannot
 evaluate to `False`. Both `torch 2.15.0+cpu` and `torch 2.15.0+cu132` therefore
-land on `cp312_linux_x86_64`, and rules_python fails because a hub can only
+land on `cp314_linux_x86_64`, and rules_python fails because a hub can only
 hold one wheel per package per platform.
 
 ## Friction / limitations

@@ -1,7 +1,7 @@
 # Conflicting extras (CPU vs CUDA torch) with rules_py 2.0.0-alpha.11
 
 Module: `conflicts_rules_py`. It uses rules_py's own interpreter provisioning
-(`python_interpreters`, Python 3.12) and its own `py_test`.
+(`python_interpreters`, Python 3.14) and its own `py_test`.
 
 ```sh
 bazel test //...                 # //:torch_{cpu,cu132}_test + //shared_lock:torch_{cpu,cu132}_test
